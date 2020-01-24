@@ -1,13 +1,14 @@
 # News Gathering
 
-## production URL
-[News Gathering](https://news-gathering.herokuapp.com/)
+> Built with Nuxt.js v2.11.0
 
-> A news application built with Nuxt 2 and Firestore
+## production URL
+
+[News Gathering](https://news-gathering.herokuapp.com/)
 
 ## Build Setup
 
-``` bash
+```bash
 # install dependencies
 $ yarn install
 

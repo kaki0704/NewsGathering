@@ -65,6 +65,7 @@ export interface NewsCategory {
 export interface Country {
   code: string
   name: string
+  language: string
 }
 
 export interface NewsDataApiResponse {

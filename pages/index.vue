@@ -1,22 +1,19 @@
 <script setup lang="ts">
-import type { Headline, NewsCategory, Country } from '~/types'
+import type { Headline, NewsCategory } from '~/types'
 
 const newsStore = useNewsStore()
 const router = useRouter()
 const { publishedTimeToNow } = useTimeFormat()
 
-// UI State
 const showLeftSidepanel = ref(false)
 const showRightSidepanel = ref(false)
 const showSearchDialog = ref(false)
 
-// Search State
 const query = ref('')
 const fromDate = ref<Date | null>(null)
 const toDate = ref<Date | null>(null)
 const sortBy = ref('')
 
-// Constants
 const newsCategories: NewsCategory[] = [
   { name: 'トップニュース', path: '', icon: 'i-heroicons-newspaper' },
   { name: 'テクノロジー', path: 'technology', icon: 'i-heroicons-computer-desktop' },
@@ -26,12 +23,12 @@ const newsCategories: NewsCategory[] = [
   { name: 'スポーツ', path: 'sports', icon: 'i-heroicons-trophy' }
 ]
 
-const countries: Country[] = [
-  { code: 'jp', name: 'Japan' },
-  { code: 'us', name: 'United States' },
-  { code: 'ca', name: 'Canada' },
-  { code: 'de', name: 'Germany' },
-  { code: 'ru', name: 'Russia' }
+const countries = [
+  { code: 'jp', name: 'Japan', language: 'ja' },
+  { code: 'us', name: 'United States', language: 'en' },
+  { code: 'ca', name: 'Canada', language: 'en' },
+  { code: 'de', name: 'Germany', language: 'de' },
+  { code: 'ru', name: 'Russia', language: 'ru' },
 ]
 
 const sortOptions = [
@@ -40,7 +37,6 @@ const sortOptions = [
   { label: '人気度', value: 'popularity' }
 ]
 
-// Computed
 const headlines = computed(() => newsStore.headlines)
 const feed = computed(() => newsStore.feed)
 const category = computed(() => newsStore.category)
@@ -49,7 +45,6 @@ const country = computed(() => newsStore.country)
 const user = computed(() => newsStore.user)
 const isAuthenticated = computed(() => newsStore.isAuthenticated)
 
-// Methods
 const loadCategory = async (categoryPath: string) => {
   newsStore.setCategory(categoryPath)
   await newsStore.loadHeadlines(buildHeadlinesUrl(country.value, categoryPath))
@@ -74,8 +69,7 @@ const searchHeadlines = async () => {
     return
   }
 
-  // newsdata.io uses 'q' for search and 'qInTitle' for title search
-  let url = `/api/news/latest?q=${encodeURIComponent(query.value)}&language=ja`
+  const url = `/api/news/latest?q=${encodeURIComponent(query.value)}&language=ja`
 
   await newsStore.loadHeadlines(url)
   showSearchDialog.value = false
@@ -104,16 +98,20 @@ const isInFeed = (title: string): boolean => {
   return feed.value.findIndex(headline => headline.title === title) > -1
 }
 
-// Helper to build API URL for newsdata.io
+const getLanguageForCountry = (countryCode: string): string => {
+  const found = countries.find((c) => c.code === countryCode)
+  return found?.language || 'en'
+}
+
 const buildHeadlinesUrl = (countryCode: string, categoryPath: string) => {
-  let url = `/api/news/latest?country=${countryCode}&language=ja`
+  const language = getLanguageForCountry(countryCode)
+  let url = `/api/news/latest?country=${countryCode}&language=${language}`
   if (categoryPath) {
     url += `&category=${categoryPath}`
   }
   return url
 }
 
-// Lifecycle
 onMounted(async () => {
   const url = buildHeadlinesUrl(country.value, category.value)
   await newsStore.loadHeadlines(url)
@@ -127,7 +125,6 @@ watch(country, async () => {
 
 <template>
   <div class="pt-16">
-    <!-- Top Navigation -->
     <header class="fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700">
       <div class="flex items-center justify-between px-4 py-3">
         <div class="flex items-center gap-4">
@@ -162,7 +159,6 @@ watch(country, async () => {
       </div>
     </header>
 
-    <!-- Search Dialog -->
     <UModal v-model="showSearchDialog">
       <UCard>
         <template #header>
@@ -203,12 +199,11 @@ watch(country, async () => {
       </UCard>
     </UModal>
 
-    <!-- Personal News Feed (Left Drawer) -->
     <USlideover v-model="showLeftSidepanel" side="left">
       <UCard class="h-full flex flex-col" :ui="{ body: { base: 'flex-1 overflow-auto' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">パーソナルメニュー</h3>
+            <h3 class="text-lg font-semibold">メニュー</h3>
             <UButton
               icon="i-heroicons-x-mark"
               color="gray"
@@ -231,7 +226,6 @@ watch(country, async () => {
             />
           </UFormGroup>
 
-          <!-- Empty State -->
           <div v-if="feed.length === 0 && !user" class="text-center py-8">
             <UIcon name="i-heroicons-bookmark" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
             <p class="text-gray-400 mb-4">ブックマークされている記事はありません</p>
@@ -245,7 +239,6 @@ watch(country, async () => {
             <p class="text-gray-500 text-sm">ブックマークした記事がこちらで見ることができます。</p>
           </div>
 
-          <!-- Feed Content -->
           <ul v-else class="space-y-2">
             <li v-for="headline in feed" :key="headline.title" class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-800">
               <UAvatar :src="headline.image_url || ''" :alt="headline.title" size="md" />
@@ -274,7 +267,6 @@ watch(country, async () => {
       </UCard>
     </USlideover>
 
-    <!-- News Categories (Right Drawer) -->
     <USlideover v-model="showRightSidepanel" side="right">
       <UCard class="h-full flex flex-col" :ui="{ body: { base: 'flex-1 overflow-auto' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
@@ -308,7 +300,6 @@ watch(country, async () => {
       </UCard>
     </USlideover>
 
-    <!-- App Content -->
     <main class="p-4 bg-cyan-700 min-h-screen">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <UCard

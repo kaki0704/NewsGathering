@@ -1,110 +1,100 @@
+<script setup lang="ts">
+import { z } from 'zod'
+import type { FormSubmitEvent } from '#ui/types'
+
+definePageMeta({
+  middleware: 'auth'
+})
+
+const newsStore = useNewsStore()
+const router = useRouter()
+const toast = useToast()
+
+const schema = z.object({
+  email: z.string().email('不正なメールアドレスです'),
+  password: z.string().min(6, 'パスワードは6文字以上で入力してください').max(20, 'パスワードは20文字以内で入力してください')
+})
+
+type Schema = z.output<typeof schema>
+
+const state = reactive<Schema>({
+  email: '',
+  password: ''
+})
+
+const loading = computed(() => newsStore.loading)
+const isAuthenticated = computed(() => newsStore.isAuthenticated)
+
+const onSubmit = async (event: FormSubmitEvent<Schema>) => {
+  await newsStore.authenticateUser({
+    action: 'login',
+    email: event.data.email,
+    password: event.data.password,
+    returnSecureToken: true
+  })
+}
+
+const goBack = () => {
+  router.back()
+}
+
+watch(isAuthenticated, (value) => {
+  if (value) {
+    toast.add({
+      title: 'ログイン成功',
+      description: `ユーザー名「${state.email}」でログインしました。`,
+      color: 'green'
+    })
+    setTimeout(() => router.push('/'), 2000)
+  }
+})
+</script>
+
 <template>
-  <div class="md-layout md-alignment-center-center" style="height: 100vh;">
-    <md-card class="md-layout-item md-size-50">
-      <md-card-header>
-        <div class="md-title">ログイン</div>
-      </md-card-header>
+  <div class="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+    <UCard class="w-full max-w-md">
+      <template #header>
+        <h1 class="text-2xl font-bold text-center">ログイン</h1>
+      </template>
 
-      <form @submit.prevent="validateForm">
-        <md-card-content>
-          <md-field md-clearable :class="getValidationClass('email')">
-            <label for="emal">メールアドレス</label>
-            <md-input :disabled="loading" type="email" name="email" id="email" autocomplete="email"
-            v-model="form.email" />
-            <span class="md-error" v-if="!$v.form.email.required">メールアドレスは必須です</span>
-            <span class="md-error" v-else-if="!$v.form.email.email">不正なメールアドレスです</span>
-          </md-field>
-          <md-field :class="getValidationClass('password')">
-            <label for="password">パスワード</label>
-            <md-input :disabled="loading" type="password" name="password" id="password"
-            autocomplete="password" v-model="form.password" />
-            <span class="md-error" v-if="!$v.form.password.required">パスワードは必須です</span>
-            <span class="md-error" v-else-if="!$v.form.password.minLength">パスワードは6文字以上で入力してください</span>
-            <span class="md-error" v-else-if="!$v.form.password.maxLength">パスワードは20文字以内で入力してください</span>
-          </md-field>
-        </md-card-content>
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+        <UFormGroup label="メールアドレス" name="email" required>
+          <UInput
+            v-model="state.email"
+            type="email"
+            placeholder="email@example.com"
+            :disabled="loading"
+            icon="i-heroicons-envelope"
+          />
+        </UFormGroup>
 
-        <md-card-actions>
-          <md-button to="/register">ユーザー登録</md-button>
-          <md-button class="md-primary md-raised" type="submit" :disabled="loading">ログイン</md-button>
-        </md-card-actions>
-      </form>
+        <UFormGroup label="パスワード" name="password" required>
+          <UInput
+            v-model="state.password"
+            type="password"
+            placeholder="パスワード"
+            :disabled="loading"
+            icon="i-heroicons-lock-closed"
+          />
+        </UFormGroup>
 
-      <md-snackbar :md-active.sync="isAuthenticated">
-        ユーザー名「{{form.email}}」でログインしました。
-      </md-snackbar>
-    </md-card>
+        <div class="flex items-center justify-between pt-4">
+          <UButton to="/register" color="gray" variant="ghost">
+            ユーザー登録
+          </UButton>
+          <UButton type="submit" color="primary" :loading="loading">
+            ログイン
+          </UButton>
+        </div>
+      </UForm>
+    </UCard>
 
-    <md-button class="md-fixed md-fab-bottom-right md-fab md-primary" @click="$router.go(-1)">
-      <md-icon>arrow_back</md-icon>
-    </md-button>
+    <UButton
+      icon="i-heroicons-arrow-left"
+      color="primary"
+      size="lg"
+      class="fixed bottom-8 right-8 rounded-full shadow-lg"
+      @click="goBack"
+    />
   </div>
 </template>
-
-<script>
-  import { validationMixin } from 'vuelidate';
-  import { required, email, minLength, maxLength } from 'vuelidate/lib/validators';
-
-  export default {
-    middleware: 'auth',
-    mixins: [validationMixin],
-    data: () => ({
-      form: {
-        email: '',
-        password: ''
-      }
-    }),
-    validations: {
-      form: {
-        email: {
-          required,
-          email
-        },
-        password: {
-          required,
-          minLength: minLength(6),
-          maxLength: maxLength(20)
-        }
-      }
-    },
-    computed: {
-      loading() {
-        return this.$store.getters.loading;
-      },
-      isAuthenticated() {
-        return this.$store.getters.isAuthenticated;
-      }
-    },
-    watch: {
-      isAuthenticated(value) {
-        if (value) {
-          setTimeout(() => this.$router.push('/'), 2000);
-        }
-      }
-    },
-    methods: {
-      validateForm() {
-        this.$v.$touch();
-        if (!this.$v.$invalid) {
-          this.loginUser();
-        }
-      },
-      async loginUser() {
-        await this.$store.dispatch('authenticateUser', {
-          action: 'login',
-          email: this.form.email,
-          password: this.form.password,
-          returnSecureToken: true
-        })
-      },
-      getValidationClass(fieldName) {
-        const field = this.$v.form[fieldName];
-        if (field) {
-          return {
-            "md-invalid": field.$invalid && field.$dirty
-          }
-        }
-      }
-    }
-  }
-</script>

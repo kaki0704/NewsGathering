@@ -1,13 +1,17 @@
+<script setup lang="ts">
+// Logo component - displays animated logo
+</script>
+
 <template>
   <div class="VueToNuxtLogo">
-    <div class="Triangle Triangle--two"/>
-    <div class="Triangle Triangle--one"/>
-    <div class="Triangle Triangle--three"/>
-    <div class="Triangle Triangle--four"/>
+    <div class="Triangle Triangle--two" />
+    <div class="Triangle Triangle--one" />
+    <div class="Triangle Triangle--three" />
+    <div class="Triangle Triangle--four" />
   </div>
 </template>
 
-<style>
+<style scoped>
 .VueToNuxtLogo {
   display: inline-block;
   animation: turn 2s linear forwards 1s;

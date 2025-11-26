@@ -1,282 +1,379 @@
-<template>
-  <div class="md-layout md-alignment-center" style="margin: 4em 0">
-    <!-- Top Navigation -->
-    <md-toolbar class="fixed-toolbar" elevation="1">
-      <md-button @click="showLeftSidepanel = true" class="md-icon-button">
-        <md-icon>menu</md-icon>
-      </md-button>
-      <nuxt-link class="md-primary md-title" to="/">
-        News Gathering
-      </nuxt-link>
+<script setup lang="ts">
+import type { Headline, NewsCategory, Country } from '~/types'
 
-      <div class="md-toolbar-section-end">
-        <template v-if="isAuthenticated">
-          <md-button>
-            <md-avatar><img :src="user.avatar" :alt="user.email"></md-avatar>
-              {{user.email}}
-          </md-button>
-          <md-button @click="logoutUser">ログアウト</md-button>
-        </template>
-        <template v-else>
-          <md-button to="/login">ログイン</md-button>
-          <md-button to="/register">ユーザー登録</md-button>
-        </template>
-        <md-button class="md-primary" @click="showSearchDialog = true">記事検索</md-button>
-        <md-button class="md-accent" @click="showRightSidepanel = true">カテゴリ</md-button>
-      </div>
-    </md-toolbar>
+const newsStore = useNewsStore()
+const router = useRouter()
+const { publishedTimeToNow } = useTimeFormat()
 
-    <!-- Search Dialog -->
-    <md-dialog :md-active.sync="showSearchDialog">
-      <md-dialog-title>記事を探す</md-dialog-title>
+// UI State
+const showLeftSidepanel = ref(false)
+const showRightSidepanel = ref(false)
+const showSearchDialog = ref(false)
 
-      <div class="md-layout" style="padding: 1em">
-        <md-field>
-          <label>検索キーワード</label>
-          <md-input v-model="query" placeholder="キーワードを入力してください。（条件にAND, OR,  NOTが使用できます。）" maxlength="30"></md-input>
-        </md-field>
-        <md-datepicker v-model="fromDate" md-immediately><label>開始日 (任意)</label></md-datepicker>
-        <md-datepicker v-model="toDate" md-immediately><label>終了日 (任意)</label></md-datepicker>
-        <md-field>
-          <label for="sortBy">並び順 (任意)</label>
-          <md-select v-model="sortBy" id="sortBy" md-dence>
-            <md-option value="publishedAt">新しい順 (デフォルト)</md-option>
-            <md-option value="relevancy">関連性</md-option>
-            <md-option value="popularity">人気度</md-option>
-          </md-select>
-        </md-field>
-      </div>
+// Search State
+const query = ref('')
+const fromDate = ref<Date | null>(null)
+const toDate = ref<Date | null>(null)
+const sortBy = ref('')
 
-      <md-dialog-actions>
-        <md-button class="md-accent" @click="showSearchDialog = false">キャンセル</md-button>
-        <md-button class="md-primary" @click="searchHeadlines">検索</md-button>
-      </md-dialog-actions>
-    </md-dialog>
+// Constants
+const newsCategories: NewsCategory[] = [
+  { name: 'トップニュース', path: '', icon: 'i-heroicons-newspaper' },
+  { name: 'テクノロジー', path: 'technology', icon: 'i-heroicons-computer-desktop' },
+  { name: 'ビジネス', path: 'business', icon: 'i-heroicons-briefcase' },
+  { name: 'エンターテイメント', path: 'entertainment', icon: 'i-heroicons-tv' },
+  { name: 'サイエンス', path: 'science', icon: 'i-heroicons-beaker' },
+  { name: 'スポーツ', path: 'sports', icon: 'i-heroicons-trophy' }
+]
 
-    <!-- Personal News Feed (Left Drawer) -->
-    <md-drawer md-fixed :md-active.sync="showLeftSidepanel">
-      <md-toolbar md-elevation="1">
-        <span class="md-title">パーソナルメニュー</span>
-      </md-toolbar>
+const countries: Country[] = [
+  { code: 'jp', name: 'Japan' },
+  { code: 'us', name: 'United States' },
+  { code: 'ca', name: 'Canada' },
+  { code: 'de', name: 'Germany' },
+  { code: 'ru', name: 'Russia' }
+]
 
-      <md-progress-bar v-if="loading" md-mode="indeterminate"></md-progress-bar>
+const sortOptions = [
+  { label: '新しい順 (デフォルト)', value: 'publishedAt' },
+  { label: '関連性', value: 'relevancy' },
+  { label: '人気度', value: 'popularity' }
+]
 
-      <md-field>
-        <label for="country">国を選択</label>
-        <md-select @input="changeCountry" :value="country" name="country" id="country">
-          <md-option value="jp">Japan</md-option>
-          <md-option value="us">United States</md-option>
-          <md-option value="ca">Canada</md-option>
-          <md-option value="de">Germany</md-option>
-          <md-option value="ru">Russia</md-option>
-        </md-select>
-      </md-field>
+// Computed
+const headlines = computed(() => newsStore.headlines)
+const feed = computed(() => newsStore.feed)
+const category = computed(() => newsStore.category)
+const loading = computed(() => newsStore.loading)
+const country = computed(() => newsStore.country)
+const user = computed(() => newsStore.user)
+const isAuthenticated = computed(() => newsStore.isAuthenticated)
 
-      <!-- Defalt Markup (if Feed Emplty) -->
-      <md-empty-state class="md-empty" v-if="feed.length === 0 && !user"
-      md-icon="bookmarks" md-label="ブックマークされている記事はありません"
-      md-description="ブックマークするにはログインしてください">
-        <md-button to='/login' class='md-primary md-raised'>ログイン</md-button>
-      </md-empty-state>
+// Methods
+const loadCategory = async (categoryPath: string) => {
+  newsStore.setCategory(categoryPath)
+  await newsStore.loadHeadlines(buildHeadlinesUrl(country.value, categoryPath))
+  showRightSidepanel.value = false
+}
 
-      <md-empty-state v-else-if="feed.length === 0" class="md-accent" md-icon="bookmark_outline" md-label="フィードには何もありません"
-      md-description="ブックマークした記事がこちらで見ることができます。"></md-empty-state>
-
-      <!-- Feed Content -->
-      <md-list class="md-triple-line" v- else v-for="headline in feed" :key="headline.id">
-        <md-list-item>
-          <md-avatar><img :src="headline.urlToImage" :alt="headline.title"></md-avatar>
-          <div class="md-list-item-text">
-            <span><a :href="headline.url" target="_blank">{{headline.title}}</a></span>
-            <span>{{headline.source.name}}</span>
-            <span @click="saveHeadline(headline)">記事のコメントを見る</span>
-          </div>
-
-          <md-button @click="removeHeadlineFromFeed(headline)" class="md-icon-button md-list-action">
-            <md-icon class="md-accent">delete</md-icon>
-          </md-button>
-        </md-list-item>
-        <md-divider class="md-inset"></md-divider>
-      </md-list>
-    </md-drawer>
-
-    <!-- News Categories (Right Drawn) -->
-    <md-drawer class="md-right" md-fixed :md-active.sync="showRightSidepanel">
-      <md-toolbar :md-elecation="1">
-        <span class="md-title">ニュースカテゴリ</span>
-      </md-toolbar>
-
-      <md-progress-bar v-if="loading" md-mode="indeterminate"></md-progress-bar>
-
-      <md-list>
-        <md-subheader class="md-primary">カテゴリ一覧</md-subheader>
-        <md-list-item v-for="(newsCategory, i) in newsCategories" :key="i"
-        @click="loadCategory(newsCategory.path)">
-          <md-icon :class="newsCategory.path === category ? 'md-primary' : ''">{{newsCategory.icon}}
-          </md-icon>
-          <span class="md-list-item-text">{{newsCategory.name}}</span>
-        </md-list-item>
-      </md-list>
-    </md-drawer>
-    <!-- App Content -->
-    <div class="md-layout-item md-size-95">
-      <md-content class="md-layout md-gutter" style="background: #007998; padding: 1em;">
-        <ul v-for="headline in headlines" :key="headline.id" class="md-layout-item md-large-size-25 md-medium-size-33 md-small-size-50 md-xsmall-size-100">
-          <md-card style="margin-top: 1em;" md-with-hover>
-            <md-ripple>
-              <md-card-media md-ratio="16:9">
-                <img :src="headline.urlToImage" :alt="headline.title">
-              </md-card-media>
-
-                <md-card-header>
-                  <div class="md-card-title">
-                    <a :href="headline.url" target="_blank">{{headline.title}}</a>
-                  </div>
-                  <div @click="loadSource(headline.source.id)">
-                    {{headline.source.name}}
-                    <md-icon class="small-icon">book</md-icon>
-                  </div>
-                  <div class="md-subhead" v-if="headline.author">
-                    {{headline.author}}
-                    <md-icon class="small-icon">face</md-icon>
-                  </div>
-                  <div class="md-subhead">
-                    {{headline.publishedAt | publishedTimeToNow }}
-                    <md-icon class="small-icon">alarm</md-icon>
-                  </div>
-                </md-card-header>
-
-                <md-card-content>{{headline.description}}</md-card-content>
-                <md-card-actions>
-                  <md-button @click="addHeadlineToFeed(headline)" class="md-icon-button" :class="isInFeed(headline.title)">
-                    <md-icon>bookmark</md-icon>
-                  </md-button>
-                  <md-button @click="saveHeadline(headline)" class="md-icon-button">
-                    <md-icon>message</md-icon>
-                  </md-button>
-                </md-card-actions>
-            </md-ripple>
-          </md-card>
-        </ul>
-      </md-content>
-    </div>
-  </div>
-</template>
-
-<script>
-  import required from 'vuelidate/lib/validators';
-  export default {
-    data: () => ({
-      showRightSidepanel: false,
-      showLeftSidepanel: false,
-      showSearchDialog: false,
-      newsCategories: [
-        { name: 'トップニュース', path: '', icon: 'today' },
-        { name: 'テクノロジー', path: 'technology', icon: 'keyboard' },
-        { name: 'ビジネス', path: 'business', icon: 'business_center' },
-        { name: 'エンターテイメント', path: 'entertainment', icon: 'weekend' },
-        { name: 'サイエンス', path: 'science', icon: 'fingerprint' },
-        { name: 'スポーツ', path: 'sports', icon: 'golf_course' }
-      ],
-      query: "",
-      fromDate: '',
-      toDate: '',
-      sortBy: ''
-    }),
-    async fetch({ store }) {
-      await store.dispatch('loadHeadlines', `/api/top-headlines?country=${store.state.country}&category=${store.state.category}`);
-      await store.dispatch('loadUserFeed');
-    },
-    watch : {
-      async country() {
-        await this.$store.dispatch('loadHeadlines', `/api/top-headlines?country=${this.country}&category=${this.category}`);
-      }
-    },
-    computed: {
-      headlines() {
-        return this.$store.getters.headlines;
-      },
-      feed() {
-        return this.$store.getters.feed;
-      },
-      category() {
-        return this.$store.getters.category;
-      },
-      source() {
-        return this.$store.getters.source;
-      },
-      loading() {
-        return this.$store.getters.loading;
-      },
-      country() {
-        return this.$store.getters.country;
-      },
-      user() {
-        return this.$store.getters.user;
-      },
-      isAuthenticated() {
-        return this.$store.getters.isAuthenticated;
-      }
-    },
-    methods: {
-      async loadCategory(category) {
-        this.$store.commit('setCategory', category);
-        await this.$store.dispatch('loadHeadlines', `/api/top-headlines?country=${this.country}&category=${this.category}`);
-      },
-      async loadSource(sourceId) {
-        if (sourceId) {
-          this.$store.commit('setSource', sourceId);
-          await this.$store.dispatch('loadHeadlines', `/api/top-headlines?sources=${this.source}`);
-        }
-      },
-      changeCountry(country) {
-        this.$store.commit('setCountry', country);
-      },
-      async searchHeadlines() {
-        if (this.query) {
-          await this.$store.dispatch('loadHeadlines', `/api/everything?q=${this.query}&from=${this.dateToISOString(this.fromDate)}&to=${this.dateToISOString(this.toDate)}&sortBy=${this.sortBy}`);
-          this.showSearchDialog = false;
-        } else {
-          alert("キーワードを入力してください")
-        }
-      },
-      async addHeadlineToFeed(headline) {
-        if (this.user) {
-          await this.$store.dispatch('addHeadlineToFeed', headline);
-        }
-      },
-      async removeHeadlineFromFeed(headline) {
-        await this.$store.dispatch('removeHeadlineFromFeed', headline);
-      },
-      async saveHeadline(headline) {
-        await this.$store.dispatch('saveHeadline', headline).then(() => {
-          this.$router.push(`/headlines/${headline.slug}`);
-        });
-      },
-      logoutUser() {
-        this.$store.dispatch("logoutUser");
-      },
-      isInFeed(title) {
-        const inFeed = this.feed.findIndex(headline => headline.title === title) > -1;
-        return inFeed ? 'md-primary' : '';
-      },
-      dateToISOString(date) {
-        if (date) {
-          return new Date(date).toISOString();
-        }
-      }
-    }
+const loadSource = async (sourceId: string | null) => {
+  if (sourceId) {
+    newsStore.setSource(sourceId)
+    await newsStore.loadHeadlines(`/api/news/latest?domain=${sourceId}&language=ja`)
   }
+}
+
+const changeCountry = async (newCountry: string) => {
+  newsStore.setCountry(newCountry)
+  await newsStore.loadHeadlines(buildHeadlinesUrl(newCountry, category.value))
+}
+
+const searchHeadlines = async () => {
+  if (!query.value) {
+    alert('キーワードを入力してください')
+    return
+  }
+
+  // newsdata.io uses 'q' for search and 'qInTitle' for title search
+  let url = `/api/news/latest?q=${encodeURIComponent(query.value)}&language=ja`
+
+  await newsStore.loadHeadlines(url)
+  showSearchDialog.value = false
+}
+
+const addHeadlineToFeed = async (headline: Headline) => {
+  if (user.value) {
+    await newsStore.addHeadlineToFeed(headline)
+  }
+}
+
+const removeHeadlineFromFeed = async (headline: Headline) => {
+  await newsStore.removeHeadlineFromFeed(headline)
+}
+
+const saveHeadline = async (headline: Headline) => {
+  await newsStore.saveHeadline(headline)
+  router.push(`/headlines/${headline.slug}`)
+}
+
+const logoutUser = () => {
+  newsStore.logoutUser()
+}
+
+const isInFeed = (title: string): boolean => {
+  return feed.value.findIndex(headline => headline.title === title) > -1
+}
+
+// Helper to build API URL for newsdata.io
+const buildHeadlinesUrl = (countryCode: string, categoryPath: string) => {
+  let url = `/api/news/latest?country=${countryCode}&language=ja`
+  if (categoryPath) {
+    url += `&category=${categoryPath}`
+  }
+  return url
+}
+
+// Lifecycle
+onMounted(async () => {
+  const url = buildHeadlinesUrl(country.value, category.value)
+  await newsStore.loadHeadlines(url)
+  await newsStore.loadUserFeed()
+})
+
+watch(country, async () => {
+  await newsStore.loadHeadlines(buildHeadlinesUrl(country.value, category.value))
+})
 </script>
 
-<style scoped>
-  .small-icon {
-    font-size: 18px !important;
-  }
+<template>
+  <div class="pt-16">
+    <!-- Top Navigation -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700">
+      <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-4">
+          <UButton
+            icon="i-heroicons-bars-3"
+            color="gray"
+            variant="ghost"
+            @click="showLeftSidepanel = true"
+          />
+          <NuxtLink to="/" class="text-xl font-bold text-primary-400">
+            News Gathering
+          </NuxtLink>
+        </div>
 
-  .fixed-toolbar {
-    position: fixed;
-    top: 0;
-    z-index: 5;
-  }
-</style>
+        <div class="flex items-center gap-2">
+          <template v-if="isAuthenticated && user">
+            <UButton color="gray" variant="ghost">
+              <UAvatar :src="user.avatar" :alt="user.email" size="xs" />
+              <span class="ml-2 hidden sm:inline">{{ user.email }}</span>
+            </UButton>
+            <UButton color="gray" variant="ghost" @click="logoutUser">
+              ログアウト
+            </UButton>
+          </template>
+          <template v-else>
+            <UButton to="/login" color="gray" variant="ghost">ログイン</UButton>
+            <UButton to="/register" color="gray" variant="ghost">ユーザー登録</UButton>
+          </template>
+          <button class="text-red-400 hover:text-red-300 transition-colors" @click="showSearchDialog = true">記事検索</button>
+          <button class="text-lime-400 hover:text-lime-300 transition-colors" @click="showRightSidepanel = true">カテゴリ</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Search Dialog -->
+    <UModal v-model="showSearchDialog">
+      <UCard>
+        <template #header>
+          <h3 class="text-lg font-semibold">記事を探す</h3>
+        </template>
+
+        <div class="space-y-4">
+          <UFormGroup label="検索キーワード">
+            <UInput
+              v-model="query"
+              placeholder="キーワードを入力してください。（条件にAND, OR, NOTが使用できます。）"
+              :maxlength="30"
+            />
+          </UFormGroup>
+
+          <div class="grid grid-cols-2 gap-4">
+            <UFormGroup label="開始日 (任意)">
+              <UInput v-model="fromDate" type="date" />
+            </UFormGroup>
+            <UFormGroup label="終了日 (任意)">
+              <UInput v-model="toDate" type="date" />
+            </UFormGroup>
+          </div>
+
+          <UFormGroup label="並び順 (任意)">
+            <USelect v-model="sortBy" :options="sortOptions" option-attribute="label" value-attribute="value" placeholder="選択してください" />
+          </UFormGroup>
+        </div>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="red" variant="ghost" @click="showSearchDialog = false">
+              キャンセル
+            </UButton>
+            <UButton color="primary" @click="searchHeadlines">検索</UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
+
+    <!-- Personal News Feed (Left Drawer) -->
+    <USlideover v-model="showLeftSidepanel" side="left">
+      <UCard class="h-full flex flex-col" :ui="{ body: { base: 'flex-1 overflow-auto' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">パーソナルメニュー</h3>
+            <UButton
+              icon="i-heroicons-x-mark"
+              color="gray"
+              variant="ghost"
+              @click="showLeftSidepanel = false"
+            />
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <UProgress v-if="loading" animation="carousel" />
+
+          <UFormGroup label="国を選択">
+            <USelect
+              :model-value="country"
+              :options="countries"
+              option-attribute="name"
+              value-attribute="code"
+              @update:model-value="changeCountry"
+            />
+          </UFormGroup>
+
+          <!-- Empty State -->
+          <div v-if="feed.length === 0 && !user" class="text-center py-8">
+            <UIcon name="i-heroicons-bookmark" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <p class="text-gray-400 mb-4">ブックマークされている記事はありません</p>
+            <p class="text-gray-500 text-sm mb-4">ブックマークするにはログインしてください</p>
+            <UButton to="/login" color="primary">ログイン</UButton>
+          </div>
+
+          <div v-else-if="feed.length === 0" class="text-center py-8">
+            <UIcon name="i-heroicons-bookmark-slash" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <p class="text-gray-400">フィードには何もありません</p>
+            <p class="text-gray-500 text-sm">ブックマークした記事がこちらで見ることができます。</p>
+          </div>
+
+          <!-- Feed Content -->
+          <ul v-else class="space-y-2">
+            <li v-for="headline in feed" :key="headline.title" class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-800">
+              <UAvatar :src="headline.image_url || ''" :alt="headline.title" size="md" />
+              <div class="flex-1 min-w-0">
+                <a :href="headline.link" target="_blank" class="text-sm font-medium text-gray-200 hover:text-primary-400 line-clamp-2">
+                  {{ headline.title }}
+                </a>
+                <p class="text-xs text-gray-500">{{ headline.source_name }}</p>
+                <button
+                  class="text-xs text-primary-400 hover:underline"
+                  @click="saveHeadline(headline)"
+                >
+                  記事のコメントを見る
+                </button>
+              </div>
+              <UButton
+                icon="i-heroicons-trash"
+                color="red"
+                variant="ghost"
+                size="xs"
+                @click="removeHeadlineFromFeed(headline)"
+              />
+            </li>
+          </ul>
+        </div>
+      </UCard>
+    </USlideover>
+
+    <!-- News Categories (Right Drawer) -->
+    <USlideover v-model="showRightSidepanel" side="right">
+      <UCard class="h-full flex flex-col" :ui="{ body: { base: 'flex-1 overflow-auto' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">ニュースカテゴリ</h3>
+            <UButton
+              icon="i-heroicons-x-mark"
+              color="gray"
+              variant="ghost"
+              @click="showRightSidepanel = false"
+            />
+          </div>
+        </template>
+
+        <div>
+          <UProgress v-if="loading" animation="carousel" />
+
+          <nav class="space-y-1">
+            <button
+              v-for="newsCategory in newsCategories"
+              :key="newsCategory.path"
+              class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors"
+              :class="newsCategory.path === category ? 'bg-primary-500/10 text-primary-400' : 'hover:bg-gray-800 text-gray-300'"
+              @click="loadCategory(newsCategory.path)"
+            >
+              <UIcon :name="newsCategory.icon" class="w-5 h-5" />
+              <span>{{ newsCategory.name }}</span>
+            </button>
+          </nav>
+        </div>
+      </UCard>
+    </USlideover>
+
+    <!-- App Content -->
+    <main class="p-4 bg-cyan-700 min-h-screen">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <UCard
+          v-for="headline in headlines"
+          :key="headline.title"
+          class="overflow-hidden hover:ring-2 hover:ring-primary-400 transition-all"
+        >
+          <template #header>
+            <img
+              :src="headline.image_url || '/default-image.jpeg'"
+              :alt="headline.title"
+              class="w-full h-48 object-cover"
+            />
+          </template>
+
+          <div class="space-y-2">
+            <a
+              :href="headline.link"
+              target="_blank"
+              class="font-semibold text-gray-200 hover:text-primary-400 line-clamp-2"
+            >
+              {{ headline.title }}
+            </a>
+
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+              <button
+                class="hover:text-primary-400"
+                @click="loadSource(headline.source_id)"
+              >
+                {{ headline.source_name }}
+              </button>
+              <UIcon name="i-heroicons-book-open" class="w-4 h-4" />
+            </div>
+
+            <div v-if="headline.creator && headline.creator.length > 0" class="flex items-center gap-2 text-sm text-gray-500">
+              <span>{{ headline.creator.join(', ') }}</span>
+              <UIcon name="i-heroicons-user" class="w-4 h-4" />
+            </div>
+
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+              <span>{{ publishedTimeToNow(headline.pubDate) }}</span>
+              <UIcon name="i-heroicons-clock" class="w-4 h-4" />
+            </div>
+
+            <p class="text-sm text-gray-400 line-clamp-3">{{ headline.description }}</p>
+          </div>
+
+          <template #footer>
+            <div class="flex gap-2">
+              <UButton
+                :icon="isInFeed(headline.title) ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'"
+                :color="isInFeed(headline.title) ? 'primary' : 'gray'"
+                variant="ghost"
+                @click="addHeadlineToFeed(headline)"
+              />
+              <UButton
+                icon="i-heroicons-chat-bubble-left"
+                color="gray"
+                variant="ghost"
+                @click="saveHeadline(headline)"
+              />
+            </div>
+          </template>
+        </UCard>
+      </div>
+    </main>
+  </div>
+</template>

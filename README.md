@@ -1,26 +1,72 @@
 # News Gathering
 
-> Built with Nuxt.js v2.11.0
+A news aggregation application built with Nuxt 3 and TypeScript.
 
-## production URL
+## Tech Stack
 
-[News Gathering](https://news-gathering.herokuapp.com/)
+- **Framework**: Nuxt 3
+- **Language**: TypeScript
+- **State Management**: Pinia
+- **UI**: Nuxt UI (Tailwind CSS)
+- **Database**: Firebase Firestore
+- **Authentication**: Firebase Authentication
+- **News API**: newsdata.io
 
-## Build Setup
+## Setup
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm
+
+### Installation
 
 ```bash
-# install dependencies
-$ yarn install
-
-# serve with hot reload at localhost:3000
-$ yarn run dev
-
-# build for production and launch server
-$ yarn run build
-$ yarn start
-
-# generate static project
-$ yarn run generate
+pnpm install
 ```
 
-For detailed explanation on how things work, checkout [Nuxt.js docs](https://nuxtjs.org).
+### Environment Variables
+
+Create a `.env` file and set the following environment variables:
+
+```env
+NUXT_PUBLIC_NEWSDATA_API_KEY=your_newsdata_api_key
+NUXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NUXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
+NUXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NUXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+```
+
+## Development
+
+```bash
+# Start development server
+pnpm dev
+
+# Lint
+pnpm lint
+
+# Lint with auto-fix
+pnpm lint:fix
+
+# Format
+pnpm format
+
+# Type check
+pnpm typecheck
+
+# Build
+pnpm build
+```
+
+## Features
+
+- Browse news articles (by country and category)
+- Search articles
+- User authentication (register, login)
+- Bookmark articles
+- Comment on articles

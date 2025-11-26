@@ -1,0 +1,50 @@
+/* Custom styles for News Gathering app */
+
+/* Primary color overrides for Nuxt UI */
+:root {
+  --color-primary-50: #f2f9e7;
+  --color-primary-100: #e4f3cf;
+  --color-primary-200: #c9e7a0;
+  --color-primary-300: #aeda70;
+  --color-primary-400: #9ccc65;
+  --color-primary-500: #8bc34a;
+  --color-primary-600: #7cb342;
+  --color-primary-700: #689f38;
+  --color-primary-800: #558b2f;
+  --color-primary-900: #33691e;
+  --color-primary-950: #1b4d02;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

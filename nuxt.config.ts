@@ -1,6 +1,10 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
 
+  future: {
+    compatibilityVersion: 4,
+  },
+
   nitro: {
     preset: 'cloudflare-pages',
   },
@@ -18,16 +22,12 @@ export default defineNuxtConfig({
         {
           hid: 'description',
           name: 'description',
-          content: 'A news application built with Nuxt 3 and Firestore',
+          content: 'A news application built with Nuxt 4 and Firestore',
         },
       ],
       link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
     },
     pageTransition: { name: 'page', mode: 'out-in' },
-  },
-
-  colorMode: {
-    preference: 'dark',
   },
 
   runtimeConfig: {
@@ -44,5 +44,5 @@ export default defineNuxtConfig({
     },
   },
 
-  compatibilityDate: '2024-11-01',
+  compatibilityDate: '2025-05-01',
 })

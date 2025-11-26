@@ -159,72 +159,56 @@ watch(country, async () => {
       </div>
     </header>
 
-    <UModal v-model="showSearchDialog">
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold">記事を探す</h3>
-        </template>
-
-        <div class="space-y-4">
-          <UFormGroup label="検索キーワード">
+    <UModal v-model:open="showSearchDialog" title="記事を探す">
+      <template #content>
+        <div class="p-4 space-y-4">
+          <UFormField label="検索キーワード">
             <UInput
               v-model="query"
               placeholder="キーワードを入力してください。（条件にAND, OR, NOTが使用できます。）"
               :maxlength="30"
             />
-          </UFormGroup>
+          </UFormField>
 
           <div class="grid grid-cols-2 gap-4">
-            <UFormGroup label="開始日 (任意)">
+            <UFormField label="開始日 (任意)">
               <UInput v-model="fromDate" type="date" />
-            </UFormGroup>
-            <UFormGroup label="終了日 (任意)">
+            </UFormField>
+            <UFormField label="終了日 (任意)">
               <UInput v-model="toDate" type="date" />
-            </UFormGroup>
+            </UFormField>
           </div>
 
-          <UFormGroup label="並び順 (任意)">
-            <USelect v-model="sortBy" :options="sortOptions" option-attribute="label" value-attribute="value" placeholder="選択してください" />
-          </UFormGroup>
-        </div>
+          <UFormField label="並び順 (任意)">
+            <USelect v-model="sortBy" :items="sortOptions" value-key="value" placeholder="選択してください" />
+          </UFormField>
 
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton color="red" variant="ghost" @click="showSearchDialog = false">
+          <div class="flex justify-end gap-2 pt-4">
+            <UButton color="neutral" variant="ghost" @click="showSearchDialog = false">
               キャンセル
             </UButton>
             <UButton color="primary" @click="searchHeadlines">検索</UButton>
           </div>
-        </template>
-      </UCard>
+        </div>
+      </template>
     </UModal>
 
-    <USlideover v-model="showLeftSidepanel" side="left">
-      <UCard class="h-full flex flex-col" :ui="{ body: { base: 'flex-1 overflow-auto' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">メニュー</h3>
-            <UButton
-              icon="i-heroicons-x-mark"
-              color="gray"
-              variant="ghost"
-              @click="showLeftSidepanel = false"
-            />
+    <USlideover v-model:open="showLeftSidepanel" side="left" title="メニュー">
+      <template #content>
+        <div class="p-4 space-y-4">
+          <div v-if="loading" class="flex justify-center py-4">
+            <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
           </div>
-        </template>
 
-        <div class="space-y-4">
-          <UProgress v-if="loading" animation="carousel" />
-
-          <UFormGroup label="国を選択">
+          <UFormField label="国を選択">
             <USelect
               :model-value="country"
-              :options="countries"
-              option-attribute="name"
-              value-attribute="code"
+              :items="countries"
+              label-key="name"
+              value-key="code"
               @update:model-value="changeCountry"
             />
-          </UFormGroup>
+          </UFormField>
 
           <div v-if="feed.length === 0 && !user" class="text-center py-8">
             <UIcon name="i-heroicons-bookmark" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
@@ -256,7 +240,7 @@ watch(country, async () => {
               </div>
               <UButton
                 icon="i-heroicons-trash"
-                color="red"
+                color="error"
                 variant="ghost"
                 size="xs"
                 @click="removeHeadlineFromFeed(headline)"
@@ -264,25 +248,15 @@ watch(country, async () => {
             </li>
           </ul>
         </div>
-      </UCard>
+      </template>
     </USlideover>
 
-    <USlideover v-model="showRightSidepanel" side="right">
-      <UCard class="h-full flex flex-col" :ui="{ body: { base: 'flex-1 overflow-auto' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">ニュースカテゴリ</h3>
-            <UButton
-              icon="i-heroicons-x-mark"
-              color="gray"
-              variant="ghost"
-              @click="showRightSidepanel = false"
-            />
+    <USlideover v-model:open="showRightSidepanel" side="right" title="ニュースカテゴリ">
+      <template #content>
+        <div class="p-4">
+          <div v-if="loading" class="flex justify-center py-4">
+            <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
           </div>
-        </template>
-
-        <div>
-          <UProgress v-if="loading" animation="carousel" />
 
           <nav class="space-y-1">
             <button
@@ -297,7 +271,7 @@ watch(country, async () => {
             </button>
           </nav>
         </div>
-      </UCard>
+      </template>
     </USlideover>
 
     <main class="p-4 bg-cyan-700 min-h-screen">

@@ -43,7 +43,7 @@ watch(isAuthenticated, (value) => {
     toast.add({
       title: 'ログイン成功',
       description: `ユーザー名「${state.email}」でログインしました。`,
-      color: 'green'
+      color: 'success'
     })
     setTimeout(() => router.push('/'), 2000)
   }
@@ -58,7 +58,7 @@ watch(isAuthenticated, (value) => {
       </template>
 
       <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-        <UFormGroup label="メールアドレス" name="email" required>
+        <UFormField label="メールアドレス" name="email" required>
           <UInput
             v-model="state.email"
             type="email"
@@ -66,9 +66,9 @@ watch(isAuthenticated, (value) => {
             :disabled="loading"
             icon="i-heroicons-envelope"
           />
-        </UFormGroup>
+        </UFormField>
 
-        <UFormGroup label="パスワード" name="password" required>
+        <UFormField label="パスワード" name="password" required>
           <UInput
             v-model="state.password"
             type="password"
@@ -76,7 +76,7 @@ watch(isAuthenticated, (value) => {
             :disabled="loading"
             icon="i-heroicons-lock-closed"
           />
-        </UFormGroup>
+        </UFormField>
 
         <div class="flex items-center justify-between pt-4">
           <UButton to="/register" color="gray" variant="ghost">

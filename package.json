@@ -1,7 +1,6 @@
 {
   "name": "news-gathering",
   "version": "2.0.0",
-  "description": "A news application built with Nuxt 3 and Firestore",
   "author": "yamady0704",
   "private": true,
   "type": "module",
@@ -18,22 +17,25 @@
     "format": "biome format --write ."
   },
   "dependencies": {
-    "@nuxt/ui": "^2.18.0",
+    "@nuxt/ui": "^4.2.1",
     "@pinia/nuxt": "^0.5.5",
     "dayjs": "^1.11.19",
     "firebase": "^10.14.0",
     "limax": "^4.1.0",
     "md5": "^2.3.0",
     "pinia": "^2.2.4",
+    "tailwindcss": "^4.1.17",
     "uuid": "^10.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.7",
+    "@iconify-json/heroicons": "^1.2.3",
+    "@iconify-json/lucide": "^1.2.75",
     "@nuxt/devtools": "^1.6.1",
     "@types/md5": "^2.3.5",
     "@types/uuid": "^10.0.0",
-    "nuxt": "^3.14.0",
+    "nuxt": "^4.2.1",
     "typescript": "^5.6.3",
     "vue-tsc": "^2.1.10"
   }

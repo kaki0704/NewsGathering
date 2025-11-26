@@ -93,14 +93,14 @@ onMounted(async () => {
       <!-- Comment Form -->
       <UCard class="mb-8">
         <form @submit.prevent="sendComment">
-          <UFormGroup label="コメントを入力してください">
+          <UFormField label="コメントを入力してください">
             <UTextarea
               v-model="text"
               :disabled="loading || !user"
               placeholder="コメントを入力..."
               :rows="3"
             />
-          </UFormGroup>
+          </UFormField>
           <div class="mt-4">
             <UButton
               type="submit"

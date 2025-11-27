@@ -44,6 +44,14 @@ const loading = computed(() => newsStore.loading)
 const country = computed(() => newsStore.country)
 const user = computed(() => newsStore.user)
 const isAuthenticated = computed(() => newsStore.isAuthenticated)
+const hasMore = computed(() => newsStore.hasMore)
+
+const loadMoreTrigger = ref<HTMLElement | null>(null)
+
+const loadMore = async () => {
+  if (loading.value || !hasMore.value) return
+  await newsStore.loadMoreHeadlines()
+}
 
 const loadCategory = async (categoryPath: string) => {
   newsStore.setCategory(categoryPath)
@@ -112,15 +120,56 @@ const buildHeadlinesUrl = (countryCode: string, categoryPath: string) => {
   return url
 }
 
+let observer: IntersectionObserver | null = null
+
+const setupObserver = () => {
+  if (observer) {
+    observer.disconnect()
+  }
+
+  if (loadMoreTrigger.value) {
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(loadMoreTrigger.value)
+  }
+}
+
 onMounted(async () => {
   const url = buildHeadlinesUrl(country.value, category.value)
   await newsStore.loadHeadlines(url)
-  await newsStore.loadUserFeed()
+
+  nextTick(() => {
+    setupObserver()
+  })
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+  }
 })
 
 watch(country, async () => {
   await newsStore.loadHeadlines(buildHeadlinesUrl(country.value, category.value))
 })
+
+watch(headlines, () => {
+  nextTick(() => {
+    setupObserver()
+  })
+})
+
+watch(user, async (newUser) => {
+  if (newUser) {
+    await newsStore.loadUserFeed()
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -134,7 +183,7 @@ watch(country, async () => {
             variant="ghost"
             @click="showLeftSidepanel = true"
           />
-          <NuxtLink to="/" class="text-xl font-bold text-primary-400">
+          <NuxtLink to="/" class="text-xl font-bold text-white">
             News Gathering
           </NuxtLink>
         </div>
@@ -162,25 +211,26 @@ watch(country, async () => {
     <UModal v-model:open="showSearchDialog" title="記事を探す">
       <template #content>
         <div class="p-4 space-y-4">
-          <UFormField label="検索キーワード">
+          <UFormField label="検索キーワード" class="w-full">
             <UInput
               v-model="query"
               placeholder="キーワードを入力してください。（条件にAND, OR, NOTが使用できます。）"
               :maxlength="30"
+              class="w-full"
             />
           </UFormField>
 
           <div class="grid grid-cols-2 gap-4">
             <UFormField label="開始日 (任意)">
-              <UInput v-model="fromDate" type="date" />
+              <UInput v-model="fromDate" type="date" class="w-full" />
             </UFormField>
             <UFormField label="終了日 (任意)">
-              <UInput v-model="toDate" type="date" />
+              <UInput v-model="toDate" type="date" class="w-full" />
             </UFormField>
           </div>
 
-          <UFormField label="並び順 (任意)">
-            <USelect v-model="sortBy" :items="sortOptions" value-key="value" placeholder="選択してください" />
+          <UFormField label="並び順 (任意)" class="w-full">
+            <USelect v-model="sortBy" :items="sortOptions" value-key="value" placeholder="選択してください" class="w-full" />
           </UFormField>
 
           <div class="flex justify-end gap-2 pt-4">
@@ -200,12 +250,13 @@ watch(country, async () => {
             <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
           </div>
 
-          <UFormField label="国を選択">
+          <UFormField label="国を選択" class="w-full">
             <USelect
               :model-value="country"
               :items="countries"
               label-key="name"
               value-key="code"
+              class="w-full"
               @update:model-value="changeCountry"
             />
           </UFormField>
@@ -274,8 +325,9 @@ watch(country, async () => {
       </template>
     </USlideover>
 
-    <main class="p-4 bg-cyan-700 min-h-screen">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <main class="p-4 min-h-screen">
+      <div class="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
         <UCard
           v-for="headline in headlines"
           :key="headline.title"
@@ -338,6 +390,22 @@ watch(country, async () => {
             </div>
           </template>
         </UCard>
+        </div>
+
+        <!-- Infinite scroll trigger -->
+        <div
+          v-if="headlines.length > 0"
+          ref="loadMoreTrigger"
+          class="flex justify-center py-8"
+        >
+          <div v-if="loading" class="flex items-center gap-2 text-gray-300">
+            <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin" />
+            <span>読み込み中...</span>
+          </div>
+          <div v-else-if="!hasMore" class="text-gray-400">
+            すべての記事を読み込みました
+          </div>
+        </div>
       </div>
     </main>
   </div>

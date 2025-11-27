@@ -72,6 +72,7 @@ export interface NewsDataApiResponse {
   status: string
   totalResults: number
   results: NewsDataArticle[]
+  nextPage: string | null
 }
 
 export interface NewsDataArticle {

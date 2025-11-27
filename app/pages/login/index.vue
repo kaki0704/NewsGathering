@@ -25,13 +25,42 @@ const state = reactive<Schema>({
 const loading = computed(() => newsStore.loading)
 const isAuthenticated = computed(() => newsStore.isAuthenticated)
 
+const getErrorMessage = (error: unknown): string => {
+  const err = error as { code?: string; message?: string }
+  const errorCode = err?.code || ''
+
+  switch (errorCode) {
+    case 'auth/user-not-found':
+      return 'このメールアドレスは登録されていません。'
+    case 'auth/wrong-password':
+      return 'パスワードが正しくありません。'
+    case 'auth/user-disabled':
+      return 'このアカウントは無効になっています。'
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'メールアドレスまたはパスワードが正しくありません。'
+    case 'auth/too-many-requests':
+      return 'ログイン試行回数が多すぎます。しばらくしてからお試しください。'
+    default:
+      return 'ログインに失敗しました。'
+  }
+}
+
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
-  await newsStore.authenticateUser({
-    action: 'register',
-    email: event.data.email,
-    password: event.data.password,
-    returnSecureToken: true
-  })
+  try {
+    await newsStore.authenticateUser({
+      action: 'login',
+      email: event.data.email,
+      password: event.data.password,
+      returnSecureToken: true
+    })
+  } catch (error) {
+    toast.add({
+      title: 'ログイン失敗',
+      description: getErrorMessage(error),
+      color: 'error'
+    })
+  }
 }
 
 const goBack = () => {
@@ -41,8 +70,8 @@ const goBack = () => {
 watch(isAuthenticated, (value) => {
   if (value) {
     toast.add({
-      title: '登録完了',
-      description: `ユーザー名「${state.email}」で登録完了しました。`,
+      title: 'ログイン成功',
+      description: `ユーザー名「${state.email}」でログインしました。`,
       color: 'success'
     })
     setTimeout(() => router.push('/'), 2000)
@@ -54,36 +83,38 @@ watch(isAuthenticated, (value) => {
   <div class="min-h-screen flex items-center justify-center bg-gray-900 px-4">
     <UCard class="w-full max-w-md">
       <template #header>
-        <h1 class="text-2xl font-bold text-center">ユーザー登録</h1>
+        <h1 class="text-2xl font-bold text-center">ログイン</h1>
       </template>
 
       <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-        <UFormField label="メールアドレス" name="email" required>
+        <UFormField label="メールアドレス" name="email" required class="w-full">
           <UInput
             v-model="state.email"
             type="email"
             placeholder="email@example.com"
             :disabled="loading"
             icon="i-heroicons-envelope"
+            class="w-full"
           />
         </UFormField>
 
-        <UFormField label="パスワード" name="password" required>
+        <UFormField label="パスワード" name="password" required class="w-full">
           <UInput
             v-model="state.password"
             type="password"
             placeholder="パスワード"
             :disabled="loading"
             icon="i-heroicons-lock-closed"
+            class="w-full"
           />
         </UFormField>
 
         <div class="flex items-center justify-between pt-4">
-          <UButton to="/login" color="gray" variant="ghost">
-            ログイン
+          <UButton to="/register" color="gray" variant="ghost">
+            ユーザー登録
           </UButton>
           <UButton type="submit" color="primary" :loading="loading">
-            登録
+            ログイン
           </UButton>
         </div>
       </UForm>

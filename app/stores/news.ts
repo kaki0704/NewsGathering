@@ -23,6 +23,8 @@ interface NewsState {
   category: string
   country: string
   source: string
+  nextPage: string | null
+  currentApiUrl: string
 }
 
 export const useNewsStore = defineStore('news', {
@@ -36,10 +38,13 @@ export const useNewsStore = defineStore('news', {
     category: '',
     country: 'jp',
     source: '',
+    nextPage: null,
+    currentApiUrl: '',
   }),
 
   getters: {
     isAuthenticated: (state): boolean => !!state.token,
+    hasMore: (state): boolean => !!state.nextPage,
   },
 
   actions: {
@@ -89,6 +94,7 @@ export const useNewsStore = defineStore('news', {
 
     async loadHeadlines(apiUrl: string) {
       this.loading = true
+      this.currentApiUrl = apiUrl
 
       try {
         const response = await $fetch<NewsDataApiResponse>(apiUrl)
@@ -108,12 +114,48 @@ export const useNewsStore = defineStore('news', {
           )
 
           this.headlines = headlines
+          this.nextPage = response.nextPage || null
         } else {
           this.headlines = []
+          this.nextPage = null
         }
       } catch (error) {
         console.error('Failed to load headlines:', error)
         this.headlines = []
+        this.nextPage = null
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async loadMoreHeadlines() {
+      if (!this.nextPage || this.loading) return
+
+      this.loading = true
+
+      try {
+        const url = `${this.currentApiUrl}&page=${this.nextPage}`
+        const response = await $fetch<NewsDataApiResponse>(url)
+
+        if (response.status === 'success' && response.results) {
+          const newHeadlines: Headline[] = response.results.map(
+            (article: NewsDataArticle) => {
+              const slug = slugify(article.title || 'untitled', {
+                replacement: '-',
+              })
+              return {
+                ...article,
+                image_url: article.image_url || defaultImage,
+                slug,
+              }
+            },
+          )
+
+          this.headlines = [...this.headlines, ...newHeadlines]
+          this.nextPage = response.nextPage || null
+        }
+      } catch (error) {
+        console.error('Failed to load more headlines:', error)
       } finally {
         this.loading = false
       }
@@ -258,54 +300,44 @@ export const useNewsStore = defineStore('news', {
     },
 
     async authenticateUser(payload: AuthPayload) {
-      const config = useRuntimeConfig()
       this.loading = true
 
       try {
-        const endpoint =
-          payload.action === 'register'
-            ? `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${config.public.firebaseApiKey}`
-            : `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${config.public.firebaseApiKey}`
+        const { loginWithEmail, registerWithEmail, getDb, collection, doc, setDoc, getDoc } = useFirebase()
 
-        const authUserData = await $fetch<{
-          idToken: string
-          expiresIn: string
-          email: string
-        }>(endpoint, {
-          method: 'POST',
-          body: {
-            email: payload.email,
-            password: payload.password,
-            returnSecureToken: payload.returnSecureToken,
-          },
-        })
-
+        let userCredential
         let user: User
 
         if (payload.action === 'register') {
-          const avatar = `https://gravatar.com/avatar/${md5(authUserData.email)}?d=identicon`
-          user = { email: authUserData.email, avatar }
+          userCredential = await registerWithEmail(payload.email, payload.password)
+          const avatar = `https://gravatar.com/avatar/${md5(userCredential.user.email!)}?d=identicon`
+          user = { email: userCredential.user.email!, avatar }
 
-          const { getDb, collection, doc, setDoc } = useFirebase()
           const db = getDb()
           await setDoc(doc(collection(db, 'users'), payload.email), user)
         } else {
-          const { getDb, doc, getDoc } = useFirebase()
+          userCredential = await loginWithEmail(payload.email, payload.password)
           const db = getDb()
           const loginRef = doc(db, 'users', payload.email)
           const loggedInUser = await getDoc(loginRef)
-          user = loggedInUser.data() as User
+
+          if (loggedInUser.exists()) {
+            user = loggedInUser.data() as User
+          } else {
+            // User document doesn't exist, create one
+            const avatar = `https://gravatar.com/avatar/${md5(userCredential.user.email!)}?d=identicon`
+            user = { email: userCredential.user.email!, avatar }
+            await setDoc(doc(collection(db, 'users'), payload.email), user)
+          }
         }
 
+        const idToken = await userCredential.user.getIdToken()
+
         this.user = user
-        this.token = authUserData.idToken
-        saveUserData(authUserData, user)
+        this.token = idToken
+        saveUserData({ idToken, expiresIn: '3600', email: user.email }, user)
       } catch (error) {
-        const fetchError = error as FetchError
         console.error('Authentication error:', error)
-        if (fetchError.data) {
-          console.error('Error details:', fetchError.data)
-        }
         throw error
       } finally {
         this.loading = false
@@ -316,7 +348,13 @@ export const useNewsStore = defineStore('news', {
       setTimeout(() => this.logoutUser(), interval)
     },
 
-    logoutUser() {
+    async logoutUser() {
+      const { logout } = useFirebase()
+      try {
+        await logout()
+      } catch (error) {
+        console.error('Logout error:', error)
+      }
       this.clearToken()
       this.clearUser()
       this.clearFeed()

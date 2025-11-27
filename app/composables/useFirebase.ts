@@ -1,5 +1,13 @@
 import { type FirebaseApp, getApps, initializeApp } from 'firebase/app'
 import {
+  type Auth,
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  type UserCredential,
+} from 'firebase/auth'
+import {
   collection,
   type DocumentData,
   deleteDoc,
@@ -20,11 +28,12 @@ import {
 
 let app: FirebaseApp | null = null
 let db: Firestore | null = null
+let auth: Auth | null = null
 
 export const useFirebase = () => {
   const config = useRuntimeConfig()
 
-  const initializeFirebase = (): Firestore => {
+  const initializeFirebase = (): { db: Firestore; auth: Auth } => {
     if (!app && getApps().length === 0) {
       const firebaseConfig = {
         apiKey: config.public.firebaseApiKey,
@@ -41,19 +50,48 @@ export const useFirebase = () => {
     if (!db) {
       db = getFirestore(app!)
     }
-    return db
+    if (!auth) {
+      auth = getAuth(app!)
+    }
+    return { db, auth }
   }
 
   const getDb = (): Firestore => {
     if (!db) {
-      return initializeFirebase()
+      initializeFirebase()
     }
-    return db
+    return db!
+  }
+
+  const getAuthInstance = (): Auth => {
+    if (!auth) {
+      initializeFirebase()
+    }
+    return auth!
+  }
+
+  const loginWithEmail = async (email: string, password: string): Promise<UserCredential> => {
+    const authInstance = getAuthInstance()
+    return signInWithEmailAndPassword(authInstance, email, password)
+  }
+
+  const registerWithEmail = async (email: string, password: string): Promise<UserCredential> => {
+    const authInstance = getAuthInstance()
+    return createUserWithEmailAndPassword(authInstance, email, password)
+  }
+
+  const logout = async (): Promise<void> => {
+    const authInstance = getAuthInstance()
+    return signOut(authInstance)
   }
 
   return {
     initializeFirebase,
     getDb,
+    getAuthInstance,
+    loginWithEmail,
+    registerWithEmail,
+    logout,
     collection,
     doc,
     getDoc,
@@ -68,4 +106,4 @@ export const useFirebase = () => {
   }
 }
 
-export type { DocumentData, QuerySnapshot, Unsubscribe }
+export type { DocumentData, QuerySnapshot, Unsubscribe, UserCredential }

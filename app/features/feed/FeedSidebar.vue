@@ -24,6 +24,16 @@ const emit = defineEmits<{
   <USlideover :open="open" side="left" title="メニュー" @update:open="emit('update:open', $event)">
     <template #content>
       <div class="p-4 space-y-4">
+        <UButton
+          icon="i-heroicons-x-mark"
+          color="gray"
+          variant="ghost"
+          size="sm"
+          class="sm:hidden mb-4"
+          @click="emit('update:open', false)"
+        >
+          閉じる
+        </UButton>
         <div v-if="loading" class="flex justify-center py-4">
           <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
         </div>

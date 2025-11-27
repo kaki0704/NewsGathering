@@ -14,6 +14,9 @@ const emit = defineEmits<{
   'open-category': []
   logout: []
 }>()
+
+const isMenuOpen = ref(false)
+const isUserMenuOpen = ref(false)
 </script>
 
 <template>
@@ -24,39 +27,112 @@ const emit = defineEmits<{
           icon="i-heroicons-bars-3"
           color="gray"
           variant="ghost"
+          class="hidden sm:flex"
           @click="emit('open-feed')"
         />
         <NuxtLink to="/" class="flex items-center">
-          <img src="/logo.svg" alt="News Gathering" class="h-8" />
+          <img src="/logo.svg" alt="News Gathering" class="h-6 sm:h-8 w-auto" />
         </NuxtLink>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button class="text-red-400 hover:text-red-300 transition-colors text-sm" @click="emit('open-search')">
-          <span class="hidden sm:inline">記事検索</span>
-          <span class="sm:hidden">検索</span>
+      <!-- Desktop menu -->
+      <div class="hidden sm:flex items-center gap-4">
+        <button class="text-white hover:text-gray-300 transition-colors text-sm font-bold px-3 py-2" @click="emit('open-search')">
+          記事検索
         </button>
-        <button class="text-lime-400 hover:text-lime-300 transition-colors text-sm" @click="emit('open-category')">
-          <span class="hidden sm:inline">カテゴリ</span>
-          <span class="sm:hidden">分類</span>
+        <button class="text-white hover:text-gray-300 transition-colors text-sm font-bold px-3 py-2" @click="emit('open-category')">
+          カテゴリ
         </button>
         <template v-if="isAuthenticated && user">
-          <UButton color="gray" variant="ghost" size="xs" class="hidden md:flex">
-            <UAvatar :src="user.avatar" :alt="user.email" size="xs" />
-            <span class="ml-2">{{ user.email }}</span>
-          </UButton>
-          <UButton color="gray" variant="ghost" size="xs" @click="emit('logout')">
-            <span class="hidden sm:inline">ログアウト</span>
-            <span class="sm:hidden">OUT</span>
-          </UButton>
+          <div class="relative">
+            <button
+              class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+              @click="isUserMenuOpen = !isUserMenuOpen"
+            >
+              <UAvatar :src="user.avatar" :alt="user.email" size="xs" />
+              <span class="hidden md:inline text-sm text-gray-300">{{ user.email }}</span>
+            </button>
+            <div
+              v-if="isUserMenuOpen"
+              class="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-2 z-50"
+            >
+              <button
+                class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                @click="emit('logout'); isUserMenuOpen = false"
+              >
+                ログアウト
+              </button>
+            </div>
+          </div>
         </template>
         <template v-else>
           <UButton to="/login" color="gray" variant="ghost" size="xs">
-            <span class="hidden sm:inline">ログイン</span>
-            <span class="sm:hidden">IN</span>
+            ログイン
           </UButton>
-          <UButton to="/register" color="gray" variant="ghost" size="xs" class="hidden sm:inline-flex">
+          <UButton to="/register" color="gray" variant="ghost" size="xs">
             登録
+          </UButton>
+        </template>
+      </div>
+
+      <!-- Mobile menu -->
+      <div class="flex sm:hidden items-center gap-2">
+        <template v-if="isAuthenticated && user">
+          <UAvatar :src="user.avatar" :alt="user.email" size="xs" />
+        </template>
+        <UButton
+          icon="i-heroicons-bars-3"
+          color="gray"
+          variant="ghost"
+          size="xs"
+          @click="isMenuOpen = !isMenuOpen"
+        />
+      </div>
+    </div>
+
+    <!-- Mobile dropdown menu -->
+    <div v-if="isMenuOpen" class="sm:hidden border-t border-gray-700 bg-gray-900">
+      <div class="flex flex-col p-4 gap-3">
+        <button
+          class="text-white hover:text-gray-300 transition-colors text-left py-3 px-2 font-bold"
+          @click="emit('open-feed'); isMenuOpen = false"
+        >
+          フィード設定
+        </button>
+        <button
+          class="text-white hover:text-gray-300 transition-colors text-left py-3 px-2 font-bold"
+          @click="emit('open-search'); isMenuOpen = false"
+        >
+          記事検索
+        </button>
+        <button
+          class="text-white hover:text-gray-300 transition-colors text-left py-3 px-2 font-bold"
+          @click="emit('open-category'); isMenuOpen = false"
+        >
+          カテゴリ
+        </button>
+        <div class="border-t border-gray-700 my-2"></div>
+        <template v-if="isAuthenticated && user">
+          <div class="flex items-center gap-2 py-2">
+            <UAvatar :src="user.avatar" :alt="user.email" size="xs" />
+            <span class="text-sm text-gray-300">{{ user.email }}</span>
+          </div>
+          <UButton
+            color="gray"
+            variant="ghost"
+            size="xs"
+            class="justify-start"
+            @click="emit('logout'); isMenuOpen = false"
+          >
+            ログアウト
+          </UButton>
+        </template>
+        <template v-else>
+          <UButton to="/login" color="gray" variant="ghost" size="xs" class="justify-start">
+            ログイン
+          </UButton>
+          <UButton to="/register" color="gray" variant="ghost" size="xs" class="justify-start">
+            ユーザー登録
           </UButton>
         </template>
       </div>

@@ -6,10 +6,18 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    preset: 'cloudflare-pages',
+    preset: 'cloudflare_module',
+    cloudflare: {
+      deployConfig: true,
+      nodeCompat: true,
+    },
   },
 
-  modules: ['@nuxt/ui', '@pinia/nuxt'],
+  modules: ['@nuxt/ui', '@pinia/nuxt', 'nitro-cloudflare-dev'],
+
+  icon: {
+    serverBundle: 'local',
+  },
 
   css: ['~/assets/css/main.css'],
 
@@ -32,15 +40,15 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      newsdataApiKey: '',
-      firebaseApiKey: '',
-      firebaseAuthDomain: '',
-      firebaseDatabaseUrl: '',
-      firebaseProjectId: '',
-      firebaseStorageBucket: '',
-      firebaseMessagingSenderId: '',
-      firebaseAppId: '',
-      firebaseMeasurementId: '',
+      newsdataApiKey: process.env.NUXT_PUBLIC_NEWSDATA_API_KEY || '',
+      firebaseApiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY || '',
+      firebaseAuthDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+      firebaseDatabaseUrl: process.env.NUXT_PUBLIC_FIREBASE_DATABASE_URL || '',
+      firebaseProjectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+      firebaseStorageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+      firebaseMessagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+      firebaseAppId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID || '',
+      firebaseMeasurementId: process.env.NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID || '',
     },
   },
 

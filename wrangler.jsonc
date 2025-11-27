@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "news-gathering",
+  "main": "./.output/server/index.mjs",
+  "compatibility_date": "2025-11-27",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./.output/public/"
+  },
+  "observability": {
+    "enabled": true
+  },
+}

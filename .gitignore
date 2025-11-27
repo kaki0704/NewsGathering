@@ -83,3 +83,8 @@ dist
 
 # IDE
 .idea
+
+# Wrangler
+.dev.vars
+wrangler.jsonc.local
+.wrangler/

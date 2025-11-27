@@ -23,11 +23,11 @@ const newsCategories: NewsCategory[] = [
 ]
 
 const countries: Country[] = [
-  { code: 'jp', name: 'Japan', language: 'ja' },
-  { code: 'us', name: 'United States', language: 'en' },
-  { code: 'ca', name: 'Canada', language: 'en' },
-  { code: 'de', name: 'Germany', language: 'de' },
-  { code: 'ru', name: 'Russia', language: 'ru' },
+  { code: 'jp', name: '日本', language: 'ja' },
+  { code: 'us', name: 'アメリカ', language: 'en' },
+  { code: 'ca', name: 'カナダ', language: 'en' },
+  { code: 'de', name: 'ドイツ', language: 'de' },
+  { code: 'ru', name: 'ロシア', language: 'ru' },
 ]
 
 const headlines = computed(() => newsStore.headlines)
@@ -200,7 +200,16 @@ watch(user, async (newUser) => {
 
     <main class="p-4 min-h-screen">
       <div class="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+        <!-- Loading state -->
+        <div v-if="loading && headlines.length === 0" class="flex justify-center items-center py-20">
+          <div class="flex flex-col items-center gap-4">
+            <UIcon name="i-lucide-loader-circle" class="w-12 h-12 animate-spin text-primary-400" />
+            <span class="text-gray-300">ニュースを読み込んでいます...</span>
+          </div>
+        </div>
+
+        <!-- News grid -->
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
           <NewsCard
             v-for="headline in headlines"
             :key="headline.title"

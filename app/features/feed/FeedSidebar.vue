@@ -28,7 +28,7 @@ const emit = defineEmits<{
           <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
         </div>
 
-        <UFormField label="国を選択" class="w-full">
+        <UFormField label="言語を選択" class="w-full">
           <USelect
             :model-value="country"
             :items="countries"

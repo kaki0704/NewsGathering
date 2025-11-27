@@ -17,7 +17,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <header class="fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700">
+  <header class="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-700">
     <div class="flex items-center justify-between px-4 py-3">
       <div class="flex items-center gap-4">
         <UButton
@@ -26,8 +26,8 @@ const emit = defineEmits<{
           variant="ghost"
           @click="emit('open-feed')"
         />
-        <NuxtLink to="/" class="text-xl font-bold text-white">
-          News Gathering
+        <NuxtLink to="/" class="flex items-center">
+          <img src="/logo.svg" alt="News Gathering" class="h-8" />
         </NuxtLink>
       </div>
 

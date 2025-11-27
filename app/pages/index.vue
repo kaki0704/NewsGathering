@@ -1,18 +1,17 @@
 <script setup lang="ts">
-import type { Headline, NewsCategory } from '~/types'
+import type { Headline, NewsCategory, Country } from '~/types'
+import AppHeader from '~/features/layout/AppHeader.vue'
+import NewsCard from '~/features/news/NewsCard.vue'
+import SearchDialog from '~/features/search/SearchDialog.vue'
+import FeedSidebar from '~/features/feed/FeedSidebar.vue'
+import CategorySidebar from '~/features/category/CategorySidebar.vue'
 
 const newsStore = useNewsStore()
 const router = useRouter()
-const { publishedTimeToNow } = useTimeFormat()
 
 const showLeftSidepanel = ref(false)
 const showRightSidepanel = ref(false)
 const showSearchDialog = ref(false)
-
-const query = ref('')
-const fromDate = ref<Date | null>(null)
-const toDate = ref<Date | null>(null)
-const sortBy = ref('')
 
 const newsCategories: NewsCategory[] = [
   { name: 'トップニュース', path: '', icon: 'i-heroicons-newspaper' },
@@ -23,18 +22,12 @@ const newsCategories: NewsCategory[] = [
   { name: 'スポーツ', path: 'sports', icon: 'i-heroicons-trophy' }
 ]
 
-const countries = [
+const countries: Country[] = [
   { code: 'jp', name: 'Japan', language: 'ja' },
   { code: 'us', name: 'United States', language: 'en' },
   { code: 'ca', name: 'Canada', language: 'en' },
   { code: 'de', name: 'Germany', language: 'de' },
   { code: 'ru', name: 'Russia', language: 'ru' },
-]
-
-const sortOptions = [
-  { label: '新しい順 (デフォルト)', value: 'publishedAt' },
-  { label: '関連性', value: 'relevancy' },
-  { label: '人気度', value: 'popularity' }
 ]
 
 const headlines = computed(() => newsStore.headlines)
@@ -71,16 +64,9 @@ const changeCountry = async (newCountry: string) => {
   await newsStore.loadHeadlines(buildHeadlinesUrl(newCountry, category.value))
 }
 
-const searchHeadlines = async () => {
-  if (!query.value) {
-    alert('キーワードを入力してください')
-    return
-  }
-
-  const url = `/api/news/latest?q=${encodeURIComponent(query.value)}&language=ja`
-
+const searchHeadlines = async (query: string) => {
+  const url = `/api/news/latest?q=${encodeURIComponent(query)}&language=ja`
   await newsStore.loadHeadlines(url)
-  showSearchDialog.value = false
 }
 
 const addHeadlineToFeed = async (headline: Headline) => {
@@ -103,7 +89,7 @@ const logoutUser = () => {
 }
 
 const isInFeed = (title: string): boolean => {
-  return feed.value.findIndex(headline => headline.title === title) > -1
+  return feed.value.findIndex((headline: Headline) => headline.title === title) > -1
 }
 
 const getLanguageForCountry = (countryCode: string): string => {
@@ -130,7 +116,7 @@ const setupObserver = () => {
   if (loadMoreTrigger.value) {
     observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
+        if (entries[0]?.isIntersecting) {
           loadMore()
         }
       },
@@ -143,6 +129,10 @@ const setupObserver = () => {
 onMounted(async () => {
   const url = buildHeadlinesUrl(country.value, category.value)
   await newsStore.loadHeadlines(url)
+
+  if (user.value) {
+    await newsStore.loadUserFeed()
+  }
 
   nextTick(() => {
     setupObserver()
@@ -169,227 +159,57 @@ watch(user, async (newUser) => {
   if (newUser) {
     await newsStore.loadUserFeed()
   }
-}, { immediate: true })
+})
 </script>
 
 <template>
   <div class="pt-16">
-    <header class="fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700">
-      <div class="flex items-center justify-between px-4 py-3">
-        <div class="flex items-center gap-4">
-          <UButton
-            icon="i-heroicons-bars-3"
-            color="gray"
-            variant="ghost"
-            @click="showLeftSidepanel = true"
-          />
-          <NuxtLink to="/" class="text-xl font-bold text-white">
-            News Gathering
-          </NuxtLink>
-        </div>
+    <AppHeader
+      :is-authenticated="isAuthenticated"
+      :user="user"
+      @open-feed="showLeftSidepanel = true"
+      @open-search="showSearchDialog = true"
+      @open-category="showRightSidepanel = true"
+      @logout="logoutUser"
+    />
 
-        <div class="flex items-center gap-2">
-          <template v-if="isAuthenticated && user">
-            <UButton color="gray" variant="ghost">
-              <UAvatar :src="user.avatar" :alt="user.email" size="xs" />
-              <span class="ml-2 hidden sm:inline">{{ user.email }}</span>
-            </UButton>
-            <UButton color="gray" variant="ghost" @click="logoutUser">
-              ログアウト
-            </UButton>
-          </template>
-          <template v-else>
-            <UButton to="/login" color="gray" variant="ghost">ログイン</UButton>
-            <UButton to="/register" color="gray" variant="ghost">ユーザー登録</UButton>
-          </template>
-          <button class="text-red-400 hover:text-red-300 transition-colors" @click="showSearchDialog = true">記事検索</button>
-          <button class="text-lime-400 hover:text-lime-300 transition-colors" @click="showRightSidepanel = true">カテゴリ</button>
-        </div>
-      </div>
-    </header>
+    <SearchDialog
+      v-model:open="showSearchDialog"
+      @search="searchHeadlines"
+    />
 
-    <UModal v-model:open="showSearchDialog" title="記事を探す">
-      <template #content>
-        <div class="p-4 space-y-4">
-          <UFormField label="検索キーワード" class="w-full">
-            <UInput
-              v-model="query"
-              placeholder="キーワードを入力してください。（条件にAND, OR, NOTが使用できます。）"
-              :maxlength="30"
-              class="w-full"
-            />
-          </UFormField>
+    <FeedSidebar
+      v-model:open="showLeftSidepanel"
+      :feed="feed"
+      :user="user"
+      :loading="loading"
+      :country="country"
+      :countries="countries"
+      @change-country="changeCountry"
+      @remove-from-feed="removeHeadlineFromFeed"
+      @save-headline="saveHeadline"
+    />
 
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField label="開始日 (任意)">
-              <UInput v-model="fromDate" type="date" class="w-full" />
-            </UFormField>
-            <UFormField label="終了日 (任意)">
-              <UInput v-model="toDate" type="date" class="w-full" />
-            </UFormField>
-          </div>
-
-          <UFormField label="並び順 (任意)" class="w-full">
-            <USelect v-model="sortBy" :items="sortOptions" value-key="value" placeholder="選択してください" class="w-full" />
-          </UFormField>
-
-          <div class="flex justify-end gap-2 pt-4">
-            <UButton color="neutral" variant="ghost" @click="showSearchDialog = false">
-              キャンセル
-            </UButton>
-            <UButton color="primary" @click="searchHeadlines">検索</UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <USlideover v-model:open="showLeftSidepanel" side="left" title="メニュー">
-      <template #content>
-        <div class="p-4 space-y-4">
-          <div v-if="loading" class="flex justify-center py-4">
-            <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
-          </div>
-
-          <UFormField label="国を選択" class="w-full">
-            <USelect
-              :model-value="country"
-              :items="countries"
-              label-key="name"
-              value-key="code"
-              class="w-full"
-              @update:model-value="changeCountry"
-            />
-          </UFormField>
-
-          <div v-if="feed.length === 0 && !user" class="text-center py-8">
-            <UIcon name="i-heroicons-bookmark" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <p class="text-gray-400 mb-4">ブックマークされている記事はありません</p>
-            <p class="text-gray-500 text-sm mb-4">ブックマークするにはログインしてください</p>
-            <UButton to="/login" color="primary">ログイン</UButton>
-          </div>
-
-          <div v-else-if="feed.length === 0" class="text-center py-8">
-            <UIcon name="i-heroicons-bookmark-slash" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <p class="text-gray-400">フィードには何もありません</p>
-            <p class="text-gray-500 text-sm">ブックマークした記事がこちらで見ることができます。</p>
-          </div>
-
-          <ul v-else class="space-y-2">
-            <li v-for="headline in feed" :key="headline.title" class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-800">
-              <UAvatar :src="headline.image_url || ''" :alt="headline.title" size="md" />
-              <div class="flex-1 min-w-0">
-                <a :href="headline.link" target="_blank" class="text-sm font-medium text-gray-200 hover:text-primary-400 line-clamp-2">
-                  {{ headline.title }}
-                </a>
-                <p class="text-xs text-gray-500">{{ headline.source_name }}</p>
-                <button
-                  class="text-xs text-primary-400 hover:underline"
-                  @click="saveHeadline(headline)"
-                >
-                  記事のコメントを見る
-                </button>
-              </div>
-              <UButton
-                icon="i-heroicons-trash"
-                color="error"
-                variant="ghost"
-                size="xs"
-                @click="removeHeadlineFromFeed(headline)"
-              />
-            </li>
-          </ul>
-        </div>
-      </template>
-    </USlideover>
-
-    <USlideover v-model:open="showRightSidepanel" side="right" title="ニュースカテゴリ">
-      <template #content>
-        <div class="p-4">
-          <div v-if="loading" class="flex justify-center py-4">
-            <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-primary-400" />
-          </div>
-
-          <nav class="space-y-1">
-            <button
-              v-for="newsCategory in newsCategories"
-              :key="newsCategory.path"
-              class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors"
-              :class="newsCategory.path === category ? 'bg-primary-500/10 text-primary-400' : 'hover:bg-gray-800 text-gray-300'"
-              @click="loadCategory(newsCategory.path)"
-            >
-              <UIcon :name="newsCategory.icon" class="w-5 h-5" />
-              <span>{{ newsCategory.name }}</span>
-            </button>
-          </nav>
-        </div>
-      </template>
-    </USlideover>
+    <CategorySidebar
+      v-model:open="showRightSidepanel"
+      :loading="loading"
+      :current-category="category"
+      :categories="newsCategories"
+      @load-category="loadCategory"
+    />
 
     <main class="p-4 min-h-screen">
       <div class="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-        <UCard
-          v-for="headline in headlines"
-          :key="headline.title"
-          class="overflow-hidden hover:ring-2 hover:ring-primary-400 transition-all"
-        >
-          <template #header>
-            <img
-              :src="headline.image_url || '/default-image.jpeg'"
-              :alt="headline.title"
-              class="w-full h-48 object-cover"
-            />
-          </template>
-
-          <div class="space-y-2">
-            <a
-              :href="headline.link"
-              target="_blank"
-              class="font-semibold text-gray-200 hover:text-primary-400 line-clamp-2"
-            >
-              {{ headline.title }}
-            </a>
-
-            <div class="flex items-center gap-2 text-sm text-gray-400">
-              <button
-                class="hover:text-primary-400"
-                @click="loadSource(headline.source_id)"
-              >
-                {{ headline.source_name }}
-              </button>
-              <UIcon name="i-heroicons-book-open" class="w-4 h-4" />
-            </div>
-
-            <div v-if="headline.creator && headline.creator.length > 0" class="flex items-center gap-2 text-sm text-gray-500">
-              <span>{{ headline.creator.join(', ') }}</span>
-              <UIcon name="i-heroicons-user" class="w-4 h-4" />
-            </div>
-
-            <div class="flex items-center gap-2 text-sm text-gray-500">
-              <span>{{ publishedTimeToNow(headline.pubDate) }}</span>
-              <UIcon name="i-heroicons-clock" class="w-4 h-4" />
-            </div>
-
-            <p class="text-sm text-gray-400 line-clamp-3">{{ headline.description }}</p>
-          </div>
-
-          <template #footer>
-            <div class="flex gap-2">
-              <UButton
-                :icon="isInFeed(headline.title) ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'"
-                :color="isInFeed(headline.title) ? 'primary' : 'gray'"
-                variant="ghost"
-                @click="addHeadlineToFeed(headline)"
-              />
-              <UButton
-                icon="i-heroicons-chat-bubble-left"
-                color="gray"
-                variant="ghost"
-                @click="saveHeadline(headline)"
-              />
-            </div>
-          </template>
-        </UCard>
+          <NewsCard
+            v-for="headline in headlines"
+            :key="headline.title"
+            :headline="headline"
+            :is-in-feed="isInFeed(headline.title)"
+            @add-to-feed="addHeadlineToFeed"
+            @load-source="loadSource"
+            @save-headline="saveHeadline"
+          />
         </div>
 
         <!-- Infinite scroll trigger -->

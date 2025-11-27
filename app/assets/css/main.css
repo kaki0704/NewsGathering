@@ -7,8 +7,11 @@
   margin-right: auto !important;
 }
 
-/* Background image */
-body {
+/* Background image for all pages */
+html,
+body,
+#__nuxt {
+  min-height: 100vh;
   background-image: url('/background.png');
   background-size: cover;
   background-position: center;

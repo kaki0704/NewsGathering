@@ -23,13 +23,26 @@
         "noUnusedVariables": "warn"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "useConst": "error"
       },
       "suspicious": {
         "noExplicitAny": "error"
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["**/composables/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useConst": "off"
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "single",

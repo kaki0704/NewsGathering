@@ -7,7 +7,7 @@ const COOKIE_OPTIONS = {
 }
 
 export const saveUserData = (
-  authData: Pick<AuthResponse, 'idToken' | 'expiresIn'>,
+  authData: Pick<AuthResponse, 'idToken' | 'expiresIn'> & { email?: string },
   user: User,
 ): void => {
   const tokenExpiration = Date.now() + Number(authData.expiresIn) * 1000

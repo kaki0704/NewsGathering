@@ -36,10 +36,14 @@ const getCommentUserData = (): CommentUser => {
   if (!user.value) {
     throw new Error('User is not logged in')
   }
+  const username = user.value.email.split('@')[0]
+  if (!username) {
+    throw new Error('Invalid email format')
+  }
   return {
     email: user.value.email,
     avatar: user.value.avatar,
-    username: user.value.email.split('@')[0]
+    username
   }
 }
 
@@ -48,7 +52,9 @@ const goBack = () => {
 }
 
 onMounted(async () => {
-  const slug = route.params.slug as string
+  const slugParam = route.params.slug
+  if (!slugParam) return
+  const slug = typeof slugParam === 'string' ? slugParam : slugParam[0] || ''
   await newsStore.loadHeadline(slug)
 })
 </script>

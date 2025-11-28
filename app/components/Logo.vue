@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Logo component - displays animated logo
 </script>
 
 <template>

@@ -5,7 +5,6 @@ import defaultImage from '~/assets/default-image.jpeg'
 import type {
   AuthPayload,
   Comment,
-  FetchError,
   Headline,
   NewsDataApiResponse,
   NewsDataArticle,
@@ -13,352 +12,400 @@ import type {
 } from '~/types'
 import { clearUserData, saveUserData } from '~/utils'
 
-interface NewsState {
-  headlines: Headline[]
-  headline: Headline | null
-  feed: Headline[]
-  loading: boolean
-  token: string
-  user: User | null
-  category: string
-  country: string
-  source: string
-  nextPage: string | null
-  currentApiUrl: string
-}
-
-export const useNewsStore = defineStore('news', {
-  state: (): NewsState => ({
-    headlines: [],
-    headline: null,
-    feed: [],
-    loading: false,
-    token: '',
-    user: null,
+export const useNewsStore = defineStore('news', () => {
+  const news = ref({
+    headlines: [] as Headline[],
+    headline: null as Headline | null,
+    feed: [] as Headline[],
     category: '',
     country: 'jp',
     source: '',
-    nextPage: null,
+    nextPage: null as string | null,
     currentApiUrl: '',
-  }),
+  })
 
-  getters: {
-    isAuthenticated: (state): boolean => !!state.token,
-    hasMore: (state): boolean => !!state.nextPage,
-  },
+  const auth = ref({
+    token: '',
+    user: null as User | null,
+    loading: false,
+  })
 
-  actions: {
-    setLoading(loading: boolean) {
-      this.loading = loading
-    },
+  const isAuthenticated = computed(() => !!auth.value.token)
+  const hasMore = computed(() => !!news.value.nextPage)
 
-    setToken(token: string) {
-      this.token = token
-    },
+  const headlines = computed(() => news.value.headlines)
+  const headline = computed(() => news.value.headline)
+  const feed = computed(() => news.value.feed)
+  const category = computed(() => news.value.category)
+  const country = computed(() => news.value.country)
+  const source = computed(() => news.value.source)
+  const nextPage = computed(() => news.value.nextPage)
+  const currentApiUrl = computed(() => news.value.currentApiUrl)
+  const loading = computed(() => auth.value.loading)
+  const token = computed(() => auth.value.token)
+  const user = computed(() => auth.value.user)
 
-    setUser(user: User | null) {
-      this.user = user
-    },
+  const setLoading = (value: boolean) => {
+    auth.value.loading = value
+  }
 
-    setCategory(category: string) {
-      this.category = category
-    },
+  const setToken = (value: string) => {
+    auth.value.token = value
+  }
 
-    setCountry(country: string) {
-      this.country = country
-    },
+  const setUser = (value: User | null) => {
+    auth.value.user = value
+  }
 
-    setSource(source: string) {
-      this.source = source
-    },
+  const setCategory = (value: string) => {
+    news.value.category = value
+  }
 
-    setFeed(headlines: Headline[]) {
-      this.feed = headlines
-    },
+  const setCountry = (value: string) => {
+    news.value.country = value
+  }
 
-    setHeadline(headline: Headline | null) {
-      this.headline = headline
-    },
+  const setSource = (value: string) => {
+    news.value.source = value
+  }
 
-    clearToken() {
-      this.token = ''
-    },
+  const setFeed = (value: Headline[]) => {
+    news.value.feed = value
+  }
 
-    clearUser() {
-      this.user = null
-    },
+  const setHeadline = (value: Headline | null) => {
+    news.value.headline = value
+  }
 
-    clearFeed() {
-      this.feed = []
-    },
+  const clearToken = () => {
+    auth.value.token = ''
+  }
 
-    async loadHeadlines(apiUrl: string) {
-      this.loading = true
-      this.currentApiUrl = apiUrl
+  const clearUser = () => {
+    auth.value.user = null
+  }
 
-      try {
-        const response = await $fetch<NewsDataApiResponse>(apiUrl)
+  const clearFeed = () => {
+    news.value.feed = []
+  }
 
-        if (response.status === 'success' && response.results) {
-          const headlines: Headline[] = response.results.map(
-            (article: NewsDataArticle) => {
-              const slug = slugify(article.title || 'untitled', {
-                replacement: '-',
-              })
-              return {
-                ...article,
-                image_url: article.image_url || defaultImage,
-                slug,
-              }
-            },
-          )
+  const loadHeadlines = async (apiUrl: string) => {
+    auth.value.loading = true
+    news.value.currentApiUrl = apiUrl
 
-          this.headlines = headlines
-          this.nextPage = response.nextPage || null
-        } else {
-          this.headlines = []
-          this.nextPage = null
-        }
-      } catch (error) {
-        console.error('Failed to load headlines:', error)
-        this.headlines = []
-        this.nextPage = null
-      } finally {
-        this.loading = false
+    try {
+      const response = await $fetch<NewsDataApiResponse>(apiUrl)
+
+      if (response.status === 'success' && response.results) {
+        const headlinesData: Headline[] = response.results.map(
+          (article: NewsDataArticle) => {
+            const slug = slugify(article.title || 'untitled', {
+              replacement: '-',
+            })
+            return {
+              ...article,
+              image_url: article.image_url || defaultImage,
+              slug,
+            }
+          },
+        )
+
+        news.value.headlines = headlinesData
+        news.value.nextPage = response.nextPage || null
+      } else {
+        news.value.headlines = []
+        news.value.nextPage = null
       }
-    },
+    } catch {
+      news.value.headlines = []
+      news.value.nextPage = null
+    } finally {
+      auth.value.loading = false
+    }
+  }
 
-    async loadMoreHeadlines() {
-      if (!this.nextPage || this.loading) return
+  const loadMoreHeadlines = async () => {
+    if (!news.value.nextPage || auth.value.loading) return
 
-      this.loading = true
+    auth.value.loading = true
 
-      try {
-        const url = `${this.currentApiUrl}&page=${this.nextPage}`
-        const response = await $fetch<NewsDataApiResponse>(url)
+    try {
+      const url = `${news.value.currentApiUrl}&page=${news.value.nextPage}`
+      const response = await $fetch<NewsDataApiResponse>(url)
 
-        if (response.status === 'success' && response.results) {
-          const newHeadlines: Headline[] = response.results.map(
-            (article: NewsDataArticle) => {
-              const slug = slugify(article.title || 'untitled', {
-                replacement: '-',
-              })
-              return {
-                ...article,
-                image_url: article.image_url || defaultImage,
-                slug,
-              }
-            },
-          )
+      if (response.status === 'success' && response.results) {
+        const newHeadlines: Headline[] = response.results.map(
+          (article: NewsDataArticle) => {
+            const slug = slugify(article.title || 'untitled', {
+              replacement: '-',
+            })
+            return {
+              ...article,
+              image_url: article.image_url || defaultImage,
+              slug,
+            }
+          },
+        )
 
-          this.headlines = [...this.headlines, ...newHeadlines]
-          this.nextPage = response.nextPage || null
-        }
-      } catch (error) {
-        console.error('Failed to load more headlines:', error)
-      } finally {
-        this.loading = false
+        news.value.headlines = [...news.value.headlines, ...newHeadlines]
+        news.value.nextPage = response.nextPage || null
       }
-    },
+    } catch {
+    } finally {
+      auth.value.loading = false
+    }
+  }
 
-    async addHeadlineToFeed(headline: Headline) {
-      if (!this.user) return
+  const addHeadlineToFeed = async (headlineData: Headline) => {
+    if (!auth.value.user) return
 
-      const { getDb, collection, doc, setDoc } = useFirebase()
-      const db = getDb()
-      const feedRef = doc(
-        collection(db, `users/${this.user.email}/feed`),
-        headline.title,
-      )
-      await setDoc(feedRef, headline)
-    },
+    const { getDb, collection, doc, setDoc } = useFirebase()
+    const db = getDb()
+    const feedRef = doc(
+      collection(db, `users/${auth.value.user.email}/feed`),
+      headlineData.title,
+    )
+    await setDoc(feedRef, headlineData)
+  }
 
-    async loadUserFeed() {
-      if (!this.user) return
+  const loadUserFeed = async () => {
+    if (!auth.value.user) return
 
-      const { getDb, collection, onSnapshot } = useFirebase()
-      const db = getDb()
-      const feedRef = collection(db, `users/${this.user.email}/feed`)
+    const { getDb, collection, onSnapshot } = useFirebase()
+    const db = getDb()
+    const feedRef = collection(db, `users/${auth.value.user.email}/feed`)
 
-      onSnapshot(feedRef, (querySnapshot) => {
-        const headlines: Headline[] = []
-        querySnapshot.forEach((doc) => {
-          headlines.push(doc.data() as Headline)
-        })
-        this.feed = headlines
+    onSnapshot(feedRef, (querySnapshot) => {
+      const headlinesData: Headline[] = []
+      querySnapshot.forEach((doc) => {
+        headlinesData.push(doc.data() as Headline)
       })
-    },
+      news.value.feed = headlinesData
+    })
+  }
 
-    async loadHeadline(headlineSlug: string) {
-      const { getDb, collection, doc, getDoc, getDocs, query, orderBy } =
-        useFirebase()
-      const db = getDb()
-      const headlineRef = doc(db, 'headlines', headlineSlug)
-      const commentsRef = query(
-        collection(db, `headlines/${headlineSlug}/comments`),
-        orderBy('likes', 'desc'),
-      )
+  const loadHeadline = async (headlineSlug: string) => {
+    const { getDb, collection, doc, getDoc, getDocs, query, orderBy } =
+      useFirebase()
+    const db = getDb()
+    const headlineRef = doc(db, 'headlines', headlineSlug)
+    const commentsRef = query(
+      collection(db, `headlines/${headlineSlug}/comments`),
+      orderBy('likes', 'desc'),
+    )
 
-      const headlineDoc = await getDoc(headlineRef)
-      if (headlineDoc.exists()) {
-        const loadedHeadline = headlineDoc.data() as Headline
-        const commentsSnapshot = await getDocs(commentsRef)
-        const comments: Comment[] = []
-        commentsSnapshot.forEach((doc) => {
-          comments.push(doc.data() as Comment)
-        })
-        loadedHeadline.comments = comments
-        this.headline = loadedHeadline
-      }
-    },
+    const headlineDoc = await getDoc(headlineRef)
+    if (headlineDoc.exists()) {
+      const loadedHeadline = headlineDoc.data() as Headline
+      const commentsSnapshot = await getDocs(commentsRef)
+      const comments: Comment[] = []
+      commentsSnapshot.forEach((doc) => {
+        comments.push(doc.data() as Comment)
+      })
+      loadedHeadline.comments = comments
+      news.value.headline = loadedHeadline
+    }
+  }
 
-    async sendComment(comment: Comment) {
-      if (!this.headline) return
+  const sendComment = async (comment: Comment) => {
+    if (!news.value.headline) return
 
-      const { getDb, collection, doc, setDoc, getDocs, query, orderBy } =
-        useFirebase()
-      const db = getDb()
-      const commentsRef = collection(
-        db,
-        `headlines/${this.headline.slug}/comments`,
-      )
+    const { getDb, collection, doc, setDoc, getDocs, query, orderBy } =
+      useFirebase()
+    const db = getDb()
+    const commentsRef = collection(
+      db,
+      `headlines/${news.value.headline.slug}/comments`,
+    )
 
-      this.loading = true
-      await setDoc(doc(commentsRef, comment.id), comment)
+    auth.value.loading = true
+    await setDoc(doc(commentsRef, comment.id), comment)
 
-      const commentsQuery = query(commentsRef, orderBy('likes', 'desc'))
-      const querySnapshot = await getDocs(commentsQuery)
+    const commentsQuery = query(commentsRef, orderBy('likes', 'desc'))
+    const querySnapshot = await getDocs(commentsQuery)
+    const comments: Comment[] = []
+    querySnapshot.forEach((doc) => {
+      comments.push(doc.data() as Comment)
+    })
+    news.value.headline = { ...news.value.headline, comments }
+    auth.value.loading = false
+  }
+
+  const likeComment = async (commentId: string) => {
+    if (!news.value.headline) return
+
+    const {
+      getDb,
+      collection,
+      doc,
+      updateDoc,
+      increment,
+      query,
+      orderBy,
+      onSnapshot,
+    } = useFirebase()
+    const db = getDb()
+    const likedCommentRef = doc(
+      db,
+      `headlines/${news.value.headline.slug}/comments`,
+      commentId,
+    )
+
+    await updateDoc(likedCommentRef, {
+      likes: increment(1),
+    })
+
+    const commentsRef = query(
+      collection(db, `headlines/${news.value.headline.slug}/comments`),
+      orderBy('likes', 'desc'),
+    )
+
+    onSnapshot(commentsRef, (querySnapshot) => {
       const comments: Comment[] = []
       querySnapshot.forEach((doc) => {
         comments.push(doc.data() as Comment)
       })
-      this.headline = { ...this.headline, comments }
-      this.loading = false
-    },
+      if (news.value.headline) {
+        news.value.headline = { ...news.value.headline, comments }
+      }
+    })
+  }
 
-    async likeComment(commentId: string) {
-      if (!this.headline) return
+  const saveHeadline = async (headlineData: Headline) => {
+    const { getDb, doc, getDoc, setDoc } = useFirebase()
+    const db = getDb()
+    const headlineRef = doc(db, 'headlines', headlineData.slug)
 
+    const headlineDoc = await getDoc(headlineRef)
+    if (!headlineDoc.exists()) {
+      await setDoc(headlineRef, headlineData)
+    }
+  }
+
+  const removeHeadlineFromFeed = async (headlineData: Headline) => {
+    if (!auth.value.user) return
+
+    const { getDb, collection, doc, deleteDoc } = useFirebase()
+    const db = getDb()
+    const headlineRef = doc(
+      collection(db, `users/${auth.value.user.email}/feed`),
+      headlineData.title,
+    )
+    await deleteDoc(headlineRef)
+  }
+
+  const authenticateUser = async (payload: AuthPayload) => {
+    auth.value.loading = true
+
+    try {
       const {
+        loginWithEmail,
+        registerWithEmail,
         getDb,
         collection,
         doc,
-        updateDoc,
-        increment,
-        query,
-        orderBy,
-        onSnapshot,
+        setDoc,
+        getDoc,
       } = useFirebase()
-      const db = getDb()
-      const likedCommentRef = doc(
-        db,
-        `headlines/${this.headline.slug}/comments`,
-        commentId,
-      )
 
-      await updateDoc(likedCommentRef, {
-        likes: increment(1),
-      })
-
-      const commentsRef = query(
-        collection(db, `headlines/${this.headline.slug}/comments`),
-        orderBy('likes', 'desc'),
-      )
-
-      onSnapshot(commentsRef, (querySnapshot) => {
-        const comments: Comment[] = []
-        querySnapshot.forEach((doc) => {
-          comments.push(doc.data() as Comment)
-        })
-        if (this.headline) {
-          this.headline = { ...this.headline, comments }
-        }
-      })
-    },
-
-    async saveHeadline(headline: Headline) {
-      const { getDb, doc, getDoc, setDoc } = useFirebase()
-      const db = getDb()
-      const headlineRef = doc(db, 'headlines', headline.slug)
-
-      const headlineDoc = await getDoc(headlineRef)
-      if (!headlineDoc.exists()) {
-        await setDoc(headlineRef, headline)
-      }
-    },
-
-    async removeHeadlineFromFeed(headline: Headline) {
-      if (!this.user) return
-
-      const { getDb, collection, doc, deleteDoc } = useFirebase()
-      const db = getDb()
-      const headlineRef = doc(
-        collection(db, `users/${this.user.email}/feed`),
-        headline.title,
-      )
-      await deleteDoc(headlineRef)
-    },
-
-    async authenticateUser(payload: AuthPayload) {
-      this.loading = true
-
-      try {
-        const { loginWithEmail, registerWithEmail, getDb, collection, doc, setDoc, getDoc } = useFirebase()
-
-        let userCredential
-        let user: User
-
+      const { userCredential, userData } = await (async () => {
         if (payload.action === 'register') {
-          userCredential = await registerWithEmail(payload.email, payload.password)
-          const avatar = `https://gravatar.com/avatar/${md5(userCredential.user.email!)}?d=identicon`
-          user = { email: userCredential.user.email!, avatar }
+          const credential = await registerWithEmail(
+            payload.email,
+            payload.password,
+          )
+          const avatar = `https://gravatar.com/avatar/${md5(credential.user.email!)}?d=identicon`
+          const user = { email: credential.user.email!, avatar }
 
           const db = getDb()
           await setDoc(doc(collection(db, 'users'), payload.email), user)
-        } else {
-          userCredential = await loginWithEmail(payload.email, payload.password)
-          const db = getDb()
-          const loginRef = doc(db, 'users', payload.email)
-          const loggedInUser = await getDoc(loginRef)
+          return { userCredential: credential, userData: user }
+        }
 
-          if (loggedInUser.exists()) {
-            user = loggedInUser.data() as User
-          } else {
-            // User document doesn't exist, create one
-            const avatar = `https://gravatar.com/avatar/${md5(userCredential.user.email!)}?d=identicon`
-            user = { email: userCredential.user.email!, avatar }
-            await setDoc(doc(collection(db, 'users'), payload.email), user)
+        const credential = await loginWithEmail(payload.email, payload.password)
+        const db = getDb()
+        const loginRef = doc(db, 'users', payload.email)
+        const loggedInUser = await getDoc(loginRef)
+
+        if (loggedInUser.exists()) {
+          return {
+            userCredential: credential,
+            userData: loggedInUser.data() as User,
           }
         }
 
-        const idToken = await userCredential.user.getIdToken()
+        const avatar = `https://gravatar.com/avatar/${md5(credential.user.email!)}?d=identicon`
+        const user = { email: credential.user.email!, avatar }
+        await setDoc(doc(collection(db, 'users'), payload.email), user)
+        return { userCredential: credential, userData: user }
+      })()
 
-        this.user = user
-        this.token = idToken
-        saveUserData({ idToken, expiresIn: '3600', email: user.email }, user)
-      } catch (error) {
-        console.error('Authentication error:', error)
-        throw error
-      } finally {
-        this.loading = false
-      }
-    },
+      const idToken = await userCredential.user.getIdToken()
 
-    setLogoutTimer(interval: number) {
-      setTimeout(() => this.logoutUser(), interval)
-    },
+      auth.value.user = userData
+      auth.value.token = idToken
+      saveUserData(
+        { idToken, expiresIn: '3600', email: userData.email },
+        userData,
+      )
+    } finally {
+      auth.value.loading = false
+    }
+  }
 
-    async logoutUser() {
-      const { logout } = useFirebase()
-      try {
-        await logout()
-      } catch (error) {
-        console.error('Logout error:', error)
-      }
-      this.clearToken()
-      this.clearUser()
-      this.clearFeed()
-      clearUserData()
-    },
-  },
+  const setLogoutTimer = (interval: number) => {
+    setTimeout(() => logoutUser(), interval)
+  }
+
+  const logoutUser = async () => {
+    const { logout } = useFirebase()
+    try {
+      await logout()
+    } catch {}
+    clearToken()
+    clearUser()
+    clearFeed()
+    clearUserData()
+  }
+
+  return {
+    news: readonly(news),
+    auth: readonly(auth),
+    headlines,
+    headline,
+    feed,
+    category,
+    country,
+    source,
+    nextPage,
+    currentApiUrl,
+    loading,
+    token,
+    user,
+    isAuthenticated,
+    hasMore,
+    setLoading,
+    setToken,
+    setUser,
+    setCategory,
+    setCountry,
+    setSource,
+    setFeed,
+    setHeadline,
+    clearToken,
+    clearUser,
+    clearFeed,
+    loadHeadlines,
+    loadMoreHeadlines,
+    addHeadlineToFeed,
+    loadUserFeed,
+    loadHeadline,
+    sendComment,
+    likeComment,
+    saveHeadline,
+    removeHeadlineFromFeed,
+    authenticateUser,
+    setLogoutTimer,
+    logoutUser,
+  }
 })

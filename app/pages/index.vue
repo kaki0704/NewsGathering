@@ -99,22 +99,19 @@ const getLanguageForCountry = (countryCode: string): string => {
 
 const buildHeadlinesUrl = (countryCode: string, categoryPath: string) => {
   const language = getLanguageForCountry(countryCode)
-  let url = `/api/news/latest?country=${countryCode}&language=${language}`
-  if (categoryPath) {
-    url += `&category=${categoryPath}`
-  }
-  return url
+  const baseUrl = `/api/news/latest?country=${countryCode}&language=${language}`
+  return categoryPath ? `${baseUrl}&category=${categoryPath}` : baseUrl
 }
 
-let observer: IntersectionObserver | null = null
+const observer = ref<IntersectionObserver | null>(null)
 
 const setupObserver = () => {
-  if (observer) {
-    observer.disconnect()
+  if (observer.value) {
+    observer.value.disconnect()
   }
 
   if (loadMoreTrigger.value) {
-    observer = new IntersectionObserver(
+    observer.value = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
           loadMore()
@@ -122,7 +119,7 @@ const setupObserver = () => {
       },
       { threshold: 0.1 }
     )
-    observer.observe(loadMoreTrigger.value)
+    observer.value.observe(loadMoreTrigger.value)
   }
 }
 
@@ -140,8 +137,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (observer) {
-    observer.disconnect()
+  if (observer.value) {
+    observer.value.disconnect()
   }
 })
 

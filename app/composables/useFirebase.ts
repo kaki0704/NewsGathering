@@ -1,9 +1,9 @@
 import { type FirebaseApp, getApps, initializeApp } from 'firebase/app'
 import {
   type Auth,
+  createUserWithEmailAndPassword,
   getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
   type UserCredential,
 } from 'firebase/auth'
@@ -70,12 +70,18 @@ export const useFirebase = () => {
     return auth!
   }
 
-  const loginWithEmail = async (email: string, password: string): Promise<UserCredential> => {
+  const loginWithEmail = async (
+    email: string,
+    password: string,
+  ): Promise<UserCredential> => {
     const authInstance = getAuthInstance()
     return signInWithEmailAndPassword(authInstance, email, password)
   }
 
-  const registerWithEmail = async (email: string, password: string): Promise<UserCredential> => {
+  const registerWithEmail = async (
+    email: string,
+    password: string,
+  ): Promise<UserCredential> => {
     const authInstance = getAuthInstance()
     return createUserWithEmailAndPassword(authInstance, email, password)
   }

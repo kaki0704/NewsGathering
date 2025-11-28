@@ -31,7 +31,7 @@ const isUserMenuOpen = ref(false)
           @click="emit('open-feed')"
         />
         <NuxtLink to="/" class="flex items-center">
-          <img src="/logo.svg" alt="News Gathering" class="h-6 sm:h-8 w-auto" />
+          <img src="/logo.png" alt="News Gathering" class="h-6 sm:h-8 w-auto" />
         </NuxtLink>
       </div>
 
